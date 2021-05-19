@@ -1,6 +1,7 @@
+# from ppo_pendulum import BATCH_SIZE
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -9,7 +10,11 @@ import time
 
 from rollout_buffer import RolloutBuffer
 
-torch.set_default_tensor_type('torch.cuda.FloatTensor')
+# torch.set_default_tensor_type('torch#.cuda.FloatTensor')
+
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+# device = "cpu"
+print("Using device:", device)
 
 class Actor(nn.Module):
     def __init__(self) -> None:
@@ -34,170 +39,104 @@ class Critic(nn.Module):
         y = torch.relu(self.l2(y))
         y = self.l3(y)
         return y
-
-# class RolloutBuffer():
-#     def __init__(self,N_STEPS=512, batch_size = 32, action_dim=2, state_dim=0):
-#         self.computed_values = False
-#         self.n_items = N_STEPS//batch_size
-#         self.states = np.zeros((N_STEPS, state_dim), dtype=np.float32)
-#         self.actions = np.zeros((N_STEPS, ))
-#         self.log_probs = np.zeros((N_STEPS, ), dtype=np.float32)
-#         self.rewards = np.zeros((N_STEPS, ), dtype=np.float32)
-#         self.dones = np.zeros((N_STEPS, ))
-#         self.values = np.zeros((N_STEPS, ), dtype=np.float32)
-#         self.idx = 0 # Index of starting of batch
-#         # self.length = 0
-#         self.batch_size = batch_size
-#     def add(self, state, action, reward, done, log_prob):
-#         idx = self.idx
-#         # if idx >= 512:
-#         #     return
-#         # batch_size = self.batch_size
-#         self.states[idx] = state.copy()
-#         self.actions[idx] = action.copy()
-#         self.rewards[idx] = (reward)
-#         self.dones[idx] = done
-#         self.log_probs[idx] = log_prob
-#         self.computed_values = False
-#         self.idx += 1
-#     def iterator(self, batch_size=64):
-#         self.compute_values()
-#         idx = 0
-#         while idx + batch_size < self.size:
-#             yield self.states[idx:idx+batch_size],self.actions[idx:idx+batch_size],self.values[idx:idx+batch_size],self.log_probs[idx:idx+batch_size]
-#             idx += batch_size
-#         idx = 0
-#         self.idx = 0
-#     def compute_values(self, last_value=0,gamma=0.99):
-#         # print(len(self.actions))
-#         n = self.idx
-#         # print("n",n)
-#         # self.values = []
-#         running_sum = last_value
-#         for i in range(n-1,-1,-1):
-#             if self.dones[i]:
-#                 running_sum = self.rewards[i]
-#             else:
-#                 running_sum = self.rewards[i] + gamma*running_sum
-#             self.values[i] =  running_sum
-#         # self.compute_values = True
-#     def clear(self):
-#         # self.states = []
-#         # self.actions = []
-#         # self.rewards = []
-#         # self.dones = []
-#         # self.values = []
-#         # self.log_probs = []
-#         self.idx = 0
-
-#     def __iter__(self):
-#         self.idx = 0
-#         return self
-#     def __next__(self):
-#         idx, batch_size = self.idx, self.batch_size
-#         if self.idx + self.batch_size < len(self.states):
-#             s,a,v,l = self.states[idx:idx+batch_size],self.actions[idx:idx+batch_size],self.values[idx:idx+batch_size],self.log_probs[idx:idx+batch_size]
-#             self.idx+=1
-#             return s,a,v,l
-#         else:
-#             raise StopIteration
-
-
-buffer = RolloutBuffer(256, 128,2,4)
-env = gym.make('CartPole-v1')
+        
+env = gym.make("CartPole-v1")
 
 print(env.action_space)
 print(env.observation_space)
 
-N_TIMESTEPS = int(1e5)
-N_ITERATION_TIMESTEPS = 256
-N_EPOCHS = 10
+action_dim = 1
+state_dim = 4
 
-actor = Actor().cuda()
-critic = Critic().cuda()
+# HYPER PARAMETERS
+N_TIMESTEPS = int(1e6)
+N_ROLLOUT_TIMESTEPS = 256
+N_EPOCHS = 16
+BATCH_SIZE = 128
+LEARNING_RATE = 1e-3
+Cv = 0.5
 
-# torch.load()
+buffer = RolloutBuffer(N_ROLLOUT_TIMESTEPS, BATCH_SIZE, action_dim, state_dim)
+
+actor = Actor().to(device)
+critic = Critic().to(device)
+
+print(actor)
+print(critic)
+
+actor.load_state_dict(torch.load("./actor_cartpole.pt"))
+critic.load_state_dict(torch.load("./critic_cartpole.pt"))
 
 total_timesteps = 0
 
-opt = torch.optim.Adam(actor.parameters(), lr=0.001)
-opt_critic = torch.optim.Adam(critic.parameters(), lr=0.001)
+opt = torch.optim.Adam(actor.parameters(), lr=LEARNING_RATE)
+opt_critic = torch.optim.Adam(critic.parameters(), lr=LEARNING_RATE)
 episodes_passed = 0
 iteration = 0
 while total_timesteps < N_TIMESTEPS:
-    iteration_timesteps = 0
-    state = env.reset()
     
-    tstart = time.time()
+    rollout_timesteps = 0
+    
+    rollout_start_time = time.time()
+    
     buffer.clear()
-    while iteration_timesteps < N_ITERATION_TIMESTEPS:
-        state = state[None,:]
-        state = torch.tensor(state).float().cuda()
+    
+    _state = env.reset() # Unconverted state
+    
+    while rollout_timesteps < N_ROLLOUT_TIMESTEPS:
+        with torch.no_grad():
+            state = _state[None,:]
+            state = torch.as_tensor(state).float().to(device)
 
-        action_params = actor(state)
-        action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
-        log_prob = torch.distributions.Categorical(logits=action_params[0]).log_prob(action).detach().item()
-        # print(log_prob)
-        action = action[0].detach().cpu().numpy()
-        next_state, reward, done, info = env.step(action)
+            prob_params = actor(state)
+            distrib = torch.distributions.Categorical(logits=prob_params[0])
+            action = distrib.sample((1,))
+            log_prob = distrib.log_prob(action).item()
 
-        # ts2 = time.time()
-        buffer.add(state[0].detach().cpu().numpy(), action, reward, done, log_prob)
-        # print(time.time()-ts2)
+            action = action[0].cpu().numpy()
+            next_state, reward, done, info = env.step(action)
+            buffer.add(_state, action, reward, done, log_prob)
         
         if done:
             next_state = env.reset()
             episodes_passed += 1
-        state = next_state
+        _state = next_state
 
-        iteration_timesteps += 1
+        rollout_timesteps += 1
         total_timesteps += 1
-    state = state[None,:]
-    state = torch.tensor(state).float().cuda()
-    last_value = critic(state)[0].detach().cpu().numpy().item()
-    # print(last_value)
+    state = _state[None,:]
+    with torch.no_grad():
+        state = torch.as_tensor(state).float().to(device)
+        last_value = critic(state)[0].cpu().numpy().item()
+
     buffer.compute_values(last_value)
-    print("Collection time", time.time()-tstart)
+    print("Collection time", time.time()-rollout_start_time)
     for epoch in range(N_EPOCHS):
         for states, actions, values, old_log_prob in buffer:
-            # print(states)
-            # actions = np.array(actions).float()
-            old_log_prob = np.array(old_log_prob)
-            actions = torch.from_numpy(actions).long().cuda()
-            # actions = torch.tensor(actions)
-            states = torch.tensor(states)
-            values = torch.tensor(values).flatten()
-            old_log_prob = torch.from_numpy(old_log_prob).cuda().reshape(-1,1)
-            # print(old_log_prob.shape)
-            # with torch.no_grad():
-            #     action_params = actor(states)
-            #     old_log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
 
+            actions = torch.as_tensor(actions).long().flatten().to(device)
+
+            states = torch.as_tensor(states).to(device)
+            values = torch.as_tensor(values).flatten().to(device)
+            old_log_prob = torch.as_tensor(old_log_prob).to(device)
             opt_critic.zero_grad()
             V = critic(states).flatten()
-            loss = 0.5 * nn.MSELoss()(V,values)
-            # print(loss)
+            loss = 0.5 * F.mse_loss(V,values)
             loss.backward()
             opt_critic.step()
-            # print(V)
+
             V = V.detach()
-            # print("V", V)
+
             advantages = values - V
-            # print(advantages.shape)
             advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
             advantages = advantages.squeeze()
-            # print(states.shape)
-            # print(action_params.shape)
-            # print(old_log_prob.shape)
+
             opt.zero_grad()
             action_params = actor(states)
             log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
-            # print("log_prob", log_prob)
             ratio = torch.exp(log_prob - old_log_prob).squeeze()
-            # print(ratio.shape)
             l1 = ratio*advantages
             l2 = torch.clip(ratio, 0.8,1.2)*advantages
-            # print(l2)
             loss = -torch.min(l1,l2)
             loss = loss.mean()
             # print(loss)
@@ -208,31 +147,35 @@ while total_timesteps < N_TIMESTEPS:
     iteration += 1
     total_reward = 0
     for episode in range(10):
-        state = env.reset()
+        _state = env.reset()
         done = False
         while not done:
-            state = state[None,:]
-            state = torch.tensor(state).float().cuda()
+            state = _state[None,:]
+            with torch.no_grad():
+                state = torch.as_tensor(state).float().to(device)
 
-            action_params = actor(state)
-            action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
-            action = action[0].detach().cpu().numpy()
+                action_params = actor(state)
+                action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
+                # action = torch.argmax(torch.softmax(action_params[0],-1))
+                action = action.cpu().numpy()
             next_state, reward, done, info = env.step(action)
-            state = next_state
+            _state = next_state
             total_reward += reward
     print(iteration,episodes_passed, total_timesteps, "avg reward", total_reward/10)
     torch.save(actor.state_dict(), "./actor_cartpole.pt")
-    torch.save(actor.state_dict(), "./critic_cartpole.pt")
-    state = env.reset()
-    done = False
+    torch.save(critic.state_dict(), "./critic_cartpole.pt")
+    print(time.time()-rollout_start_time)
+    # state = env.reset()
+    # done = False
     # while not done:
     #     state = state[None,:]
-    #     state = torch.tensor(state).float().cuda()
+    #     state = torch.tensor(state).float()#.cuda()
 
     #     action_params = actor(state)
     #     action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
     #     action = action[0].detach().cpu().numpy()
     #     env.render()
+    #     time.sleep(1/30.)
     #     next_state, reward, done, info = env.step(action)
     #     state = next_state
     # env.close()
