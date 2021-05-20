@@ -44,14 +44,6 @@ class Critic(nn.Module):
         y = self.l3(y)
         return y
 
-class ActorCritic(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.actor = Actor()
-        self.critic = Critic()
-    def forward(self, x):
-        return self.actor(x), self.critic(x)
-
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5):
@@ -78,8 +70,6 @@ class PPO():
         actor = Actor().to(device)
         critic = Critic().to(device)
 
-        actor_critic = ActorCritic().to(device)
-
         self.actor = actor
         self.critic = critic
 
@@ -90,8 +80,8 @@ class PPO():
         # critic.load_state_dict(torch.load("./critic_cartpole.pt"))
         total_timesteps = 0
 
-        opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
-        # opt_critic = torch.optim.Adam(critic.parameters(), lr=self.LEARNING_RATE)
+        opt = torch.optim.Adam(actor.parameters(), lr=self.LEARNING_RATE)
+        opt_critic = torch.optim.Adam(critic.parameters(), lr=self.LEARNING_RATE)
         episodes_passed = 0
         iteration = 0
         while total_timesteps < self.N_TIMESTEPS:
@@ -109,7 +99,7 @@ class PPO():
                     state = _state[None,:]
                     state = torch.as_tensor(state).float().to(device)
 
-                    prob_params, _ = actor_critic(state)
+                    prob_params = actor(state)
                     distrib = torch.distributions.Categorical(logits=prob_params[0])
                     action = distrib.sample((1,))
                     log_prob = distrib.log_prob(action).item()
@@ -128,8 +118,7 @@ class PPO():
             state = _state[None,:]
             with torch.no_grad():
                 state = torch.as_tensor(state).float().to(device)
-                _, last_value = actor_critic(state)
-                last_value = last_value[0].cpu().numpy().item()
+                last_value = critic(state)[0].cpu().numpy().item()
 
             self.buffer.compute_values(last_value)
             print("Collection time", time.time()-rollout_start_time)
@@ -141,35 +130,26 @@ class PPO():
                     states = torch.as_tensor(states).to(device)
                     values = torch.as_tensor(values).flatten().to(device)
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
-                    # opt_critic.zero_grad()
-                    # V = critic(states).flatten()
-                    # loss = self.COEFF_V * F.mse_loss(V,values)
-                    # loss.backward()
-                    # opt_critic.step()
+                    opt_critic.zero_grad()
+                    V = critic(states).flatten()
+                    loss = self.COEFF_V * F.mse_loss(V,values)
+                    loss.backward()
+                    opt_critic.step()
 
-                    # V = V.detach()
+                    V = V.detach()
 
-                    # advantages = values - V
-                    # advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
-                    # advantages = advantages.squeeze()
-
-                    opt.zero_grad()
-                    action_params, V = actor_critic(states)
-                    V = V.flatten()
-                    # print(V.shape, values.shape)
-                    value_loss = self.COEFF_V * F.mse_loss(V,values)
-                    advantages = values - V.detach()
+                    advantages = values - V
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.squeeze()
-                    # print(advantages.shape)
+
+                    opt.zero_grad()
+                    action_params = actor(states)
                     log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
-                    # print(log_prob.shape)
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
                     l2 = torch.clip(ratio, 0.8,1.2)*advantages
-                    # print(l1.shape, l2.shape, value_loss.shape)
                     loss = -torch.min(l1,l2)
-                    loss = loss.sum() + value_loss
+                    loss = loss.mean()
                     # print(loss)
                     loss.backward()
                     opt.step()
@@ -185,7 +165,7 @@ class PPO():
                     with torch.no_grad():
                         state = torch.as_tensor(state).float().to(device)
 
-                        action_params, _ = actor_critic(state)
+                        action_params = actor(state)
                         action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
                         # action = torch.argmax(torch.softmax(action_params[0],-1))
                         action = action.cpu().numpy()
@@ -193,8 +173,8 @@ class PPO():
                     _state = next_state
                     total_reward += reward
             print(iteration,episodes_passed, total_timesteps, "avg reward", total_reward/10)
-            # torch.save(actor.state_dict(), "./actor_cartpole.pt")
-            # torch.save(critic.state_dict(), "./critic_cartpole.pt")
+            torch.save(actor.state_dict(), "./actor_cartpole.pt")
+            torch.save(critic.state_dict(), "./critic_cartpole.pt")
             print(time.time()-rollout_start_time)
             # state = env.reset()
             # done = False
