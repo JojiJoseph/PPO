@@ -55,7 +55,7 @@ class ActorCritic(nn.Module):
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
-        clip_range=0.2,n_eval_episodes=5):
+        clip_range=0.2,n_eval_episodes=5, device=None):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -66,8 +66,14 @@ class PPO():
         self.COEFF_V = coeff_v
         self.CLIP_RANGE = clip_range
         self.N_EVAL_EPISODES = n_eval_episodes
+        if device is None:
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        self.DEVICE = device
 
     def learn(self):
+
+        device = self.DEVICE
+        print("Device: ", device)
         env = gym.make(self.ENV_NAME)
 
         self.env = env
@@ -182,6 +188,7 @@ class PPO():
                 print("Avg. Return - evaluation = ", evaluation_score)
             print("Training time = ", t_train_end - t_train_start)
     def evaluate(self):
+        device = self.DEVICE
         total_reward = 0
         env = self.env
         actor_critic = self.actor_critc

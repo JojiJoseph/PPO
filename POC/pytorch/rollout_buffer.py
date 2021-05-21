@@ -52,7 +52,7 @@ class RolloutBuffer():
         idx, batch_size = self.idx, self.batch_size
         if self.idx + self.batch_size <= len(self.states):
             s,a,v,l = self.states[idx:idx+batch_size],self.actions[idx:idx+batch_size],self.values[idx:idx+batch_size],self.log_probs[idx:idx+batch_size]
-            self.idx+=1
+            self.idx+=self.batch_size
             return s,a,v,l
         else:
             raise StopIteration
