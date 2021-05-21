@@ -20,37 +20,39 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 device = "cpu"
 print("Using device:", device)
 
-class Actor(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.l1 = nn.Linear(4, 64)
-        self.l2 = nn.Linear(64,64)
-        self.l3 = nn.Linear(64,2)
-    def forward(self, x):
-        y = torch.relu(self.l1(x))
-        y = torch.relu(self.l2(y))
-        y = self.l3(y)
-        return y
+# class Actor(nn.Module):
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.l1 = nn.Linear(4, 64)
+#         self.l2 = nn.Linear(64,64)
+#         self.l3 = nn.Linear(64,2)
+#     def forward(self, x):
+#         y = torch.relu(self.l1(x))
+#         y = torch.relu(self.l2(y))
+#         y = self.l3(y)
+#         return y
 
-class Critic(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.l1 = nn.Linear(4, 64)
-        self.l2 = nn.Linear(64,64)
-        self.l3 = nn.Linear(64,1)
-    def forward(self, x):
-        y = torch.relu(self.l1(x))
-        y = torch.relu(self.l2(y))
-        y = self.l3(y)
-        return y
+# class Critic(nn.Module):
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.l1 = nn.Linear(4, 64)
+#         self.l2 = nn.Linear(64,64)
+#         self.l3 = nn.Linear(64,1)
+#     def forward(self, x):
+#         y = torch.relu(self.l1(x))
+#         y = torch.relu(self.l2(y))
+#         y = self.l3(y)
+#         return y
 
-class ActorCritic(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.actor = Actor()
-        self.critic = Critic()
-    def forward(self, x):
-        return self.actor(x), self.critic(x)
+# class ActorCritic(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self.actor = Actor()
+#         self.critic = Critic()
+#     def forward(self, x):
+#         return self.actor(x), self.critic(x)
+
+from net import ActorCritic
 
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
@@ -78,24 +80,28 @@ class PPO():
 
         self.env = env
 
-        print(env.action_space)
-        print(env.observation_space)
+        # print(env.action_space)
+        # print(env.observation_space)
 
-        action_dim = 1
-        state_dim = 4
+        # action_dim = 1
+        # state_dim = 4
 
-        self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
 
-        actor = Actor().to(device)
-        critic = Critic().to(device)
+        # actor = Actor().to(device)
+        # critic = Critic().to(device)
 
-        actor_critic = ActorCritic().to(device)
+        n_actions = env.action_space.n
+        state_dim = env.observation_space.shape[0]
+        # print(state_dim, n_actions)
+        actor_critic = ActorCritic(state_dim, n_actions).to(device)
+        # actor_critic = ActorCritic()/
+        self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
 
-        self.actor = actor
-        self.critic = critic
+        # self.actor = actor
+        # self.critic = critic
 
-        print(actor)
-        print(critic)
+        # print(actor)
+        # print(critic)
 
         # actor.load_state_dict(torch.load("./actor_cartpole.pt"))
         # critic.load_state_dict(torch.load("./critic_cartpole.pt"))
@@ -163,7 +169,8 @@ class PPO():
                     advantages = values - V.detach()
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
-
+                    # print(action_params.shape)
+                    # print(actions.shape)
                     log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
