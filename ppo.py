@@ -193,6 +193,7 @@ class PPO():
                 t_evaluation_end = time.time()
                 print("evaluation_time = ", t_evaluation_end - t_evaluation_start)
                 print("Avg. Return - evaluation = ", evaluation_score)
+                torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
             print("Training time = ", t_train_end - t_train_start)
     def evaluate(self):
         device = self.DEVICE
@@ -216,8 +217,7 @@ class PPO():
                 total_reward += reward
         return total_reward / self.N_EVAL_EPISODES
         print(iteration,episodes_passed, total_timesteps, "avg reward", total_reward/self.N_EVAL_EPISODES)
-        # torch.save(actor.state_dict(), "./actor_cartpole.pt")
-        # torch.save(critic.state_dict(), "./critic_cartpole.pt")
+        torch.save(critic.state_dict(), "./critic_cartpole.pt")
         print(time.time()-rollout_start_time)
         # state = env.reset()
         # done = False
