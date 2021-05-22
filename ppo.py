@@ -2,7 +2,6 @@
 Class PPO Algorithm
 """
 
-# from ppo_pendulum import BATCH_SIZE
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,7 +14,7 @@ import time
 from rollout_buffer import RolloutBuffer
 
 
-from net import ActorCritic
+from net import ActorCritic, ActorCriticContinous
 
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
@@ -37,19 +36,31 @@ class PPO():
 
     def learn(self):
 
+        high_score = -np.inf
         device = self.DEVICE
         print("Device: ", device)
         env = gym.make(self.ENV_NAME)
 
         self.env = env
 
-        n_actions = env.action_space.n
+        if type(env.action_space) == gym.spaces.Discrete:
+            n_actions = env.action_space.n
+        elif type(env.action_space) == gym.spaces.Box:
+            action_dim = env.action_space.shape[0]
+        else:
+            raise NotImplementedError
         state_dim = env.observation_space.shape[0]
 
-        actor_critic = ActorCritic(state_dim, n_actions).to(device)
 
-        self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
-
+        if type(env.action_space) == gym.spaces.Discrete:
+            actor_critic = ActorCritic(state_dim, n_actions).to(device)
+            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
+        elif type(env.action_space) == gym.spaces.Box:
+            actor_critic = ActorCriticContinous(state_dim, action_dim).to(device)
+            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
+        else:
+            raise NotImplementedError
+        
         total_timesteps = 0
 
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
@@ -72,12 +83,24 @@ class PPO():
                     state = _state[None,:]
                     state = torch.as_tensor(state).float().to(device)
 
-                    prob_params, _ = actor_critic(state)
-                    distrib = torch.distributions.Categorical(logits=prob_params[0])
-                    action = distrib.sample((1,))
-                    log_prob = distrib.log_prob(action).item()
+                    if type(env.action_space) == gym.spaces.Discrete:
+                        prob_params, _ = actor_critic(state)
+                        distrib = torch.distributions.Categorical(logits=prob_params[0])
+                        action = distrib.sample((1,))
+                        log_prob = distrib.log_prob(action).item()
 
-                    action = action[0].cpu().numpy()
+                        action = action[0].cpu().numpy()
+                    else:
+                        prob_params, _ = actor_critic(state)
+                        # distrib = torch.distributions.Categorical(logits=prob_params[0])
+                        mu, log_sigma = prob_params
+                        # print(mu, log_sigma)
+                        distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
+                        action = distrib.sample((1,))
+                        # print(action)
+                        log_prob = distrib.log_prob(action).sum(dim=1).item()
+
+                        action = action[0].cpu().numpy()
                     next_state, reward, done, info = env.step(action)
                     self.buffer.add(_state, action, reward, done, log_prob)
                 
@@ -98,8 +121,10 @@ class PPO():
 
             for epoch in range(self.N_EPOCHS):
                 for states, actions, values, old_log_prob in self.buffer:
-
-                    actions = torch.as_tensor(actions).long().flatten().to(device)
+                    if type(env.action_space) == gym.spaces.Discrete:
+                        actions = torch.as_tensor(actions).long().flatten().to(device)
+                    else:
+                        actions = torch.as_tensor(actions).float().to(device)
 
                     states = torch.as_tensor(states).to(device)
                     values = torch.as_tensor(values).flatten().to(device)
@@ -116,7 +141,13 @@ class PPO():
                     advantages = advantages.flatten()
                     # print(action_params.shape)
                     # print(actions.shape)
-                    log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
+                    if type(env.action_space) == gym.spaces.Discrete:
+                        log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
+                    else:
+                        mu, log_sigma = action_params
+                        # print(mu.shape)
+                        # print(log_sigma.shape)
+                        log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
@@ -138,7 +169,10 @@ class PPO():
                 t_evaluation_end = time.time()
                 print("evaluation_time = ", t_evaluation_end - t_evaluation_start)
                 print("Avg. Return - evaluation = ", evaluation_score)
-                torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
+                if evaluation_score > high_score:
+                    print("Saved!")
+                    high_score = evaluation_score
+                    torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
             print("Training time = ", t_train_end - t_train_start)
     def evaluate(self):
         device = self.DEVICE
@@ -154,7 +188,12 @@ class PPO():
                     state = torch.as_tensor(state).float().to(device)
 
                     action_params, _ = actor_critic(state)
-                    action = torch.argmax(torch.softmax(action_params[0],-1))
+                    if type(env.action_space) == gym.spaces.Discrete:
+                        action = torch.argmax(torch.softmax(action_params[0],-1))
+                    else:
+                        mu, log_sigma = action_params
+                        distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
+                        action = distrib.sample((1,))[0]
                     # action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
                     action = action.cpu().numpy()
                 next_state, reward, done, info = env.step(action)
