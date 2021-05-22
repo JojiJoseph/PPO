@@ -26,10 +26,33 @@ class Critic(nn.Module):
         y = self.l3(y)
         return y
 
+class ActorContinous(nn.Module):
+    def __init__(self, state_dim, action_dim) -> None:
+        super().__init__()
+        self.l1 = nn.Linear(state_dim, 64)
+        self.l2 = nn.Linear(64,64)
+        self.mu = nn.Linear(64,action_dim)
+        self.log_std = nn.Parameter(torch.zeros(action_dim), requires_grad=True)
+    def forward(self, x):
+        y = torch.relu(self.l1(x))
+        y = torch.relu(self.l2(y))
+        mu = torch.tanh(self.mu(y))
+        # log_std = self.log_std(y)
+        return mu, self.log_std
+
+
 class ActorCritic(nn.Module):
     def __init__(self, state_dim, n_actions):
         super().__init__()
         self.actor = Actor(state_dim, n_actions)
+        self.critic = Critic(state_dim)
+    def forward(self, x):
+        return self.actor(x), self.critic(x)
+
+class ActorCriticContinous(nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super().__init__()
+        self.actor = ActorContinous(state_dim, action_dim)
         self.critic = Critic(state_dim)
     def forward(self, x):
         return self.actor(x), self.critic(x)
