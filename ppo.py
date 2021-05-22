@@ -2,6 +2,7 @@
 Class PPO Algorithm
 """
 
+from typing import Deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -43,6 +44,8 @@ class PPO():
 
         self.env = env
 
+        episodic_returns = Deque(maxlen=100)
+
         if type(env.action_space) == gym.spaces.Discrete:
             n_actions = env.action_space.n
         elif type(env.action_space) == gym.spaces.Box:
@@ -67,6 +70,8 @@ class PPO():
 
         episodes_passed = 0
         iteration = 0
+        _state = env.reset() # Unconverted state
+        episodic_reward = 0
         while total_timesteps < self.N_TIMESTEPS:
             
             rollout_timesteps = 0
@@ -75,7 +80,6 @@ class PPO():
             
             self.buffer.clear()
             
-            _state = env.reset() # Unconverted state
 
             t_train_start = time.time()
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
@@ -92,21 +96,22 @@ class PPO():
                         action = action[0].cpu().numpy()
                     else:
                         prob_params, _ = actor_critic(state)
-                        # distrib = torch.distributions.Categorical(logits=prob_params[0])
                         mu, log_sigma = prob_params
-                        # print(mu, log_sigma)
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))
-                        # print(action)
                         log_prob = distrib.log_prob(action).sum(dim=1).item()
 
                         action = action[0].cpu().numpy()
                     next_state, reward, done, info = env.step(action)
+                    episodic_reward += reward
                     self.buffer.add(_state, action, reward, done, log_prob)
                 
                 if done:
                     next_state = env.reset()
                     episodes_passed += 1
+                    episodic_returns.append(episodic_reward)
+                    episodic_reward = 0
+
                 _state = next_state
 
                 rollout_timesteps += 1
@@ -131,22 +136,20 @@ class PPO():
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
 
                     opt.zero_grad()
-                    action_params, V = actor_critic(states)
-                    V = V.flatten()
+                    action_params, values_pred = actor_critic(states)
+                    values_pred = values_pred.flatten()
 
-                    loss_critic = self.COEFF_V * F.mse_loss(V,values)
+                    loss_critic = self.COEFF_V * F.mse_loss(values_pred,values)
                     
-                    advantages = values - V.detach()
+                    advantages = values - values_pred.detach()
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
-                    # print(action_params.shape)
-                    # print(actions.shape)
+
                     if type(env.action_space) == gym.spaces.Discrete:
                         log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
                     else:
                         mu, log_sigma = action_params
-                        # print(mu.shape)
-                        # print(log_sigma.shape)
+
                         log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
@@ -157,18 +160,19 @@ class PPO():
                     loss.backward()
                     opt.step()
             self.buffer.clear()
-            # Evaluation step
+
             iteration += 1
             total_reward = 0
             t_train_end = time.time()
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
+            print("Avg. Return = ", np.mean(episodic_returns))
             if iteration % 10 == 1:
                 t_evaluation_start = time.time()
                 evaluation_score = self.evaluate()
                 t_evaluation_end = time.time()
-                print("evaluation_time = ", t_evaluation_end - t_evaluation_start)
-                print("Avg. Return - evaluation = ", evaluation_score)
+                print("Evaluation_time = ", t_evaluation_end - t_evaluation_start)
+                print("Avg. Return (evaluation) = ", evaluation_score)
                 if evaluation_score > high_score:
                     print("Saved!")
                     high_score = evaluation_score
@@ -179,6 +183,7 @@ class PPO():
         total_reward = 0
         env = self.env
         actor_critic = self.actor_critc
+        env = gym.make(self.ENV_NAME) # Eval env
         for episode in range(self.N_EVAL_EPISODES):
             _state = env.reset()
             done = False
@@ -194,9 +199,9 @@ class PPO():
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
-                    # action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
                     action = action.cpu().numpy()
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward
+        env.close()
         return total_reward / self.N_EVAL_EPISODES
