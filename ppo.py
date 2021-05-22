@@ -2,6 +2,7 @@
 Class PPO Algorithm
 """
 
+from typing import Deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -43,6 +44,8 @@ class PPO():
 
         self.env = env
 
+        episodic_returns = Deque(maxlen=100)
+
         if type(env.action_space) == gym.spaces.Discrete:
             n_actions = env.action_space.n
         elif type(env.action_space) == gym.spaces.Box:
@@ -67,6 +70,8 @@ class PPO():
 
         episodes_passed = 0
         iteration = 0
+        _state = env.reset() # Unconverted state
+        episodic_reward = 0
         while total_timesteps < self.N_TIMESTEPS:
             
             rollout_timesteps = 0
@@ -75,7 +80,6 @@ class PPO():
             
             self.buffer.clear()
             
-            _state = env.reset() # Unconverted state
 
             t_train_start = time.time()
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
@@ -102,11 +106,15 @@ class PPO():
 
                         action = action[0].cpu().numpy()
                     next_state, reward, done, info = env.step(action)
+                    episodic_reward += reward
                     self.buffer.add(_state, action, reward, done, log_prob)
                 
                 if done:
                     next_state = env.reset()
                     episodes_passed += 1
+                    episodic_returns.append(episodic_reward)
+                    episodic_reward = 0
+
                 _state = next_state
 
                 rollout_timesteps += 1
@@ -163,6 +171,7 @@ class PPO():
             t_train_end = time.time()
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
+            print("Avg. Return = ", np.mean(episodic_returns))
             if iteration % 10 == 1:
                 t_evaluation_start = time.time()
                 evaluation_score = self.evaluate()
@@ -179,6 +188,7 @@ class PPO():
         total_reward = 0
         env = self.env
         actor_critic = self.actor_critc
+        env = gym.make(self.ENV_NAME) # Eval env
         for episode in range(self.N_EVAL_EPISODES):
             _state = env.reset()
             done = False
@@ -199,4 +209,5 @@ class PPO():
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward
+        env.close()
         return total_reward / self.N_EVAL_EPISODES
