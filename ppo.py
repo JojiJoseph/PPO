@@ -96,12 +96,9 @@ class PPO():
                         action = action[0].cpu().numpy()
                     else:
                         prob_params, _ = actor_critic(state)
-                        # distrib = torch.distributions.Categorical(logits=prob_params[0])
                         mu, log_sigma = prob_params
-                        # print(mu, log_sigma)
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))
-                        # print(action)
                         log_prob = distrib.log_prob(action).sum(dim=1).item()
 
                         action = action[0].cpu().numpy()
@@ -139,22 +136,20 @@ class PPO():
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
 
                     opt.zero_grad()
-                    action_params, V = actor_critic(states)
-                    V = V.flatten()
+                    action_params, values_pred = actor_critic(states)
+                    values_pred = values_pred.flatten()
 
-                    loss_critic = self.COEFF_V * F.mse_loss(V,values)
+                    loss_critic = self.COEFF_V * F.mse_loss(values_pred,values)
                     
-                    advantages = values - V.detach()
+                    advantages = values - values_pred.detach()
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
-                    # print(action_params.shape)
-                    # print(actions.shape)
+
                     if type(env.action_space) == gym.spaces.Discrete:
                         log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
                     else:
                         mu, log_sigma = action_params
-                        # print(mu.shape)
-                        # print(log_sigma.shape)
+
                         log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
@@ -165,7 +160,7 @@ class PPO():
                     loss.backward()
                     opt.step()
             self.buffer.clear()
-            # Evaluation step
+
             iteration += 1
             total_reward = 0
             t_train_end = time.time()
@@ -176,8 +171,8 @@ class PPO():
                 t_evaluation_start = time.time()
                 evaluation_score = self.evaluate()
                 t_evaluation_end = time.time()
-                print("evaluation_time = ", t_evaluation_end - t_evaluation_start)
-                print("Avg. Return - evaluation = ", evaluation_score)
+                print("Evaluation_time = ", t_evaluation_end - t_evaluation_start)
+                print("Avg. Return (evaluation) = ", evaluation_score)
                 if evaluation_score > high_score:
                     print("Saved!")
                     high_score = evaluation_score
@@ -204,7 +199,6 @@ class PPO():
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
-                    # action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
                     action = action.cpu().numpy()
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
