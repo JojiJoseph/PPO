@@ -14,43 +14,6 @@ import time
 
 from rollout_buffer import RolloutBuffer
 
-# torch.set_default_tensor_type('torch#.cuda.FloatTensor')
-
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-device = "cpu"
-print("Using device:", device)
-
-# class Actor(nn.Module):
-#     def __init__(self) -> None:
-#         super().__init__()
-#         self.l1 = nn.Linear(4, 64)
-#         self.l2 = nn.Linear(64,64)
-#         self.l3 = nn.Linear(64,2)
-#     def forward(self, x):
-#         y = torch.relu(self.l1(x))
-#         y = torch.relu(self.l2(y))
-#         y = self.l3(y)
-#         return y
-
-# class Critic(nn.Module):
-#     def __init__(self) -> None:
-#         super().__init__()
-#         self.l1 = nn.Linear(4, 64)
-#         self.l2 = nn.Linear(64,64)
-#         self.l3 = nn.Linear(64,1)
-#     def forward(self, x):
-#         y = torch.relu(self.l1(x))
-#         y = torch.relu(self.l2(y))
-#         y = self.l3(y)
-#         return y
-
-# class ActorCritic(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.actor = Actor()
-#         self.critic = Critic()
-#     def forward(self, x):
-#         return self.actor(x), self.critic(x)
 
 from net import ActorCritic
 
@@ -80,35 +43,17 @@ class PPO():
 
         self.env = env
 
-        # print(env.action_space)
-        # print(env.observation_space)
-
-        # action_dim = 1
-        # state_dim = 4
-
-
-        # actor = Actor().to(device)
-        # critic = Critic().to(device)
-
         n_actions = env.action_space.n
         state_dim = env.observation_space.shape[0]
-        # print(state_dim, n_actions)
+
         actor_critic = ActorCritic(state_dim, n_actions).to(device)
-        # actor_critic = ActorCritic()/
+
         self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
 
-        # self.actor = actor
-        # self.critic = critic
-
-        # print(actor)
-        # print(critic)
-
-        # actor.load_state_dict(torch.load("./actor_cartpole.pt"))
-        # critic.load_state_dict(torch.load("./critic_cartpole.pt"))
         total_timesteps = 0
 
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
-        # opt_critic = torch.optim.Adam(critic.parameters(), lr=self.LEARNING_RATE)
+
         episodes_passed = 0
         iteration = 0
         while total_timesteps < self.N_TIMESTEPS:
@@ -150,7 +95,7 @@ class PPO():
                 last_value = last_value[0].cpu().numpy().item()
 
             self.buffer.compute_values(last_value)
-            # print("Collection time", time.time()-rollout_start_time)
+
             for epoch in range(self.N_EPOCHS):
                 for states, actions, values, old_log_prob in self.buffer:
 
@@ -216,22 +161,3 @@ class PPO():
                 _state = next_state
                 total_reward += reward
         return total_reward / self.N_EVAL_EPISODES
-        print(iteration,episodes_passed, total_timesteps, "avg reward", total_reward/self.N_EVAL_EPISODES)
-        torch.save(critic.state_dict(), "./critic_cartpole.pt")
-        print(time.time()-rollout_start_time)
-        # state = env.reset()
-        # done = False
-        # while not done:
-        #     state = state[None,:]
-        #     state = torch.tensor(state).float()#.cuda()
-
-        #     action_params = actor(state)
-        #     action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
-        #     action = action[0].detach().cpu().numpy()
-        #     env.render()
-        #     time.sleep(1/30.)
-        #     next_state, reward, done, info = env.step(action)
-        #     state = next_state
-        # env.close()
-
-        # total_timesteps += 1

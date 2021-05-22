@@ -17,12 +17,8 @@ class RolloutBuffer():
     
     def add(self, state, action, reward, done, log_prob):
         idx = self.idx
-        # if idx >= 512:
-        #     return
-        # batch_size = self.batch_size
-        # print(self.states.shape, state.shape)
-        self.states[idx] = state#.copy()
-        self.actions[idx] = action#.copy()
+        self.states[idx] = state
+        self.actions[idx] = action
         self.rewards[idx] = reward
         self.dones[idx] = done
         self.log_probs[idx] = log_prob
@@ -40,7 +36,6 @@ class RolloutBuffer():
             else:
                 running_sum = self.rewards[i] + gamma*running_sum
             self.values[i] =  running_sum
-        # self.compute_values = True
     def clear(self):
         self.idx = 0
 
