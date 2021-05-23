@@ -2,3 +2,6 @@
 **/__pycache__
 **/*.h5
 **/*.pt
+video
+results_video
+ppo_exp.py 

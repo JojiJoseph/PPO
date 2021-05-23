@@ -15,12 +15,13 @@ import time
 from rollout_buffer import RolloutBuffer
 
 
-from net import ActorCritic, ActorCriticContinous
+from net import ActorCritic, ActorCriticContinuous
 
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
-        clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None):
+        clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
+        obs_normalization=None, obs_shift=None, obs_scale=None):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -32,9 +33,21 @@ class PPO():
         self.CLIP_RANGE = clip_range
         self.N_EVAL_EPISODES = n_eval_episodes
         self.MAX_GRAD_NORM = max_grad_norm
+        self.COEFF_ENTROPY = coeff_entropy
         if device is None:
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.DEVICE = device
+        self.OBS_NORMALIZATION = obs_normalization
+        self.OBS_SHIFT = obs_shift
+        self.OBS_SCALE = obs_scale
+
+    def normalize_obs(self, observation):
+        if self.OBS_NORMALIZATION == "simple":
+            if self.OBS_SHIFT is not None:
+                observation += self.OBS_SHIFT
+            if self.OBS_SHIFT is not None:
+                observation /= self.OBS_SCALE
+        return observation
 
     def learn(self):
 
@@ -60,7 +73,7 @@ class PPO():
             actor_critic = ActorCritic(state_dim, n_actions).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
-            actor_critic = ActorCriticContinous(state_dim, action_dim).to(device)
+            actor_critic = ActorCriticContinuous(state_dim, action_dim).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
@@ -85,6 +98,7 @@ class PPO():
             t_train_start = time.time()
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
                 with torch.no_grad():
+                    _state = self.normalize_obs(_state) 
                     state = _state[None,:]
                     state = torch.as_tensor(state).float().to(device)
 
@@ -147,20 +161,23 @@ class PPO():
                     advantages = advantages.flatten()
 
                     if type(env.action_space) == gym.spaces.Discrete:
-                        log_prob = torch.distributions.Categorical(logits=action_params).log_prob(actions)
+                        distrib = torch.distributions.Categorical(logits=action_params)
+                        log_prob = distrib.log_prob(actions)
+                        # print(distrib.entropy().shape)
+                        # entropy = 0
+                        entropy_loss = -distrib.entropy().mean()
                     else:
                         mu, log_sigma = action_params
-
+                        entropy_loss = 0 # TODO
                         log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
                     l2 = torch.clip(ratio, 1 - self.CLIP_RANGE, 1 + self.CLIP_RANGE)*advantages
                     loss_actor = -torch.min(l1,l2)
-                    loss = loss_actor.mean() + loss_critic
+                    loss = loss_actor.mean() + loss_critic + self.COEFF_ENTROPY*entropy_loss
                     loss.backward()
                     if self.MAX_GRAD_NORM is not None:
-                        # print(self.MAX_GRAD_NORM)
                         torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
                     opt.step()
             self.buffer.clear()
@@ -192,6 +209,7 @@ class PPO():
             _state = env.reset()
             done = False
             while not done:
+                _state = self.normalize_obs(_state)
                 state = _state[None,:]
                 with torch.no_grad():
                     state = torch.as_tensor(state).float().to(device)

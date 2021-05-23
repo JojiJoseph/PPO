@@ -26,7 +26,7 @@ class Critic(nn.Module):
         y = self.l3(y)
         return y
 
-class ActorContinous(nn.Module):
+class ActorContinuous(nn.Module):
     def __init__(self, state_dim, action_dim) -> None:
         super().__init__()
         self.l1 = nn.Linear(state_dim, 64)
@@ -49,10 +49,10 @@ class ActorCritic(nn.Module):
     def forward(self, x):
         return self.actor(x), self.critic(x)
 
-class ActorCriticContinous(nn.Module):
+class ActorCriticContinuous(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
-        self.actor = ActorContinous(state_dim, action_dim)
+        self.actor = ActorContinuous(state_dim, action_dim)
         self.critic = Critic(state_dim)
     def forward(self, x):
         return self.actor(x), self.critic(x)
