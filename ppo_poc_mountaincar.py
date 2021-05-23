@@ -127,7 +127,7 @@ class PPO():
                     self.normalized_returns.append(ret)
                     episodic_reward += reward
                     # print(reward)
-                    reward = np.clip(reward / np.std(self.normalized_returns), -10, 10)
+                    # reward = np.clip(reward / np.std(self.normalized_returns), -10, 10)
                     # print(reward)
                     self.buffer.add(_state, action, reward, done, log_prob)
                     # print(self.normalized_returns)
