@@ -15,7 +15,7 @@ import time
 from rollout_buffer import RolloutBuffer
 
 
-from net import ActorCritic, ActorCriticContinous
+from net import ActorCritic, ActorCriticContinuous
 
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
@@ -60,7 +60,7 @@ class PPO():
             actor_critic = ActorCritic(state_dim, n_actions).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
-            actor_critic = ActorCriticContinous(state_dim, action_dim).to(device)
+            actor_critic = ActorCriticContinuous(state_dim, action_dim).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
@@ -160,7 +160,6 @@ class PPO():
                     loss = loss_actor.mean() + loss_critic
                     loss.backward()
                     if self.MAX_GRAD_NORM is not None:
-                        # print(self.MAX_GRAD_NORM)
                         torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
                     opt.step()
             self.buffer.clear()
