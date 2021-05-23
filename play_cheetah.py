@@ -6,7 +6,7 @@ import pybullet_envs
 n_episodes = 2
 
 fps = 30
-from net import ActorCriticContinous
+from net import ActorCriticContinuous
 
 env = gym.make("HalfCheetahBulletEnv-v0")
 
@@ -14,7 +14,7 @@ print(env.action_space.shape)
 print(env.observation_space.shape)
 
 
-actor_critic = ActorCriticContinous(26, 6)
+actor_critic = ActorCriticContinuous(26, 6)
 actor_critic.load_state_dict(torch.load("./HalfCheetahBulletEnv-v0.pt"))
 env.render()
 state = env.reset()

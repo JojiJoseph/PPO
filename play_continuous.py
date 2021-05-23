@@ -5,14 +5,14 @@ import time
 n_episodes = 2
 
 fps = 30
-from net import ActorCriticContinous
+from net import ActorCriticContinuous
 
 env = gym.make("LunarLanderContinuous-v2")
 
 print(env.action_space.shape)
 print(env.observation_space.shape)
 
-actor_critic = ActorCriticContinous(8, 2)
+actor_critic = ActorCriticContinuous(8, 2)
 actor_critic.load_state_dict(torch.load("./LunarLanderContinuous-v2.pt"))
 
 state = env.reset()
