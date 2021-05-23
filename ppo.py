@@ -20,7 +20,8 @@ from net import ActorCritic, ActorCriticContinuous
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
-        clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0):
+        clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
+        obs_normalization=None, obs_shift=None, obs_scale=None):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -36,6 +37,17 @@ class PPO():
         if device is None:
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.DEVICE = device
+        self.OBS_NORMALIZATION = obs_normalization
+        self.OBS_SHIFT = obs_shift
+        self.OBS_SCALE = obs_scale
+
+    def normalize_obs(self, observation):
+        if self.OBS_NORMALIZATION == "simple":
+            if self.OBS_SHIFT is not None:
+                observation += self.OBS_SHIFT
+            if self.OBS_SHIFT is not None:
+                observation /= self.OBS_SCALE
+        return observation
 
     def learn(self):
 
@@ -86,6 +98,7 @@ class PPO():
             t_train_start = time.time()
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
                 with torch.no_grad():
+                    _state = self.normalize_obs(_state) 
                     state = _state[None,:]
                     state = torch.as_tensor(state).float().to(device)
 
@@ -155,7 +168,7 @@ class PPO():
                         entropy_loss = -distrib.entropy().mean()
                     else:
                         mu, log_sigma = action_params
-                        entropy = 0 # TODO
+                        entropy_loss = 0 # TODO
                         log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
@@ -196,6 +209,7 @@ class PPO():
             _state = env.reset()
             done = False
             while not done:
+                _state = self.normalize_obs(_state)
                 state = _state[None,:]
                 with torch.no_grad():
                     state = torch.as_tensor(state).float().to(device)
