@@ -20,7 +20,7 @@ from net import ActorCritic, ActorCriticContinous
 class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
-        clip_range=0.2,n_eval_episodes=5, device=None):
+        clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -31,6 +31,7 @@ class PPO():
         self.COEFF_V = coeff_v
         self.CLIP_RANGE = clip_range
         self.N_EVAL_EPISODES = n_eval_episodes
+        self.MAX_GRAD_NORM = max_grad_norm
         if device is None:
             device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.DEVICE = device
@@ -158,6 +159,9 @@ class PPO():
                     loss_actor = -torch.min(l1,l2)
                     loss = loss_actor.mean() + loss_critic
                     loss.backward()
+                    if self.MAX_GRAD_NORM is not None:
+                        # print(self.MAX_GRAD_NORM)
+                        torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
                     opt.step()
             self.buffer.clear()
 
