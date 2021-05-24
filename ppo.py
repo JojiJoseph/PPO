@@ -12,6 +12,8 @@ import numpy as np
 import gym
 import time
 
+import csv
+
 from rollout_buffer import RolloutBuffer
 
 
@@ -21,7 +23,8 @@ class PPO():
     def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
-        obs_normalization=None, obs_shift=None, obs_scale=None):
+        obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
+        action_scale=1):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -40,14 +43,26 @@ class PPO():
         self.OBS_NORMALIZATION = obs_normalization
         self.OBS_SHIFT = obs_shift
         self.OBS_SCALE = obs_scale
+        self.REW_NORMALIZATION = rew_normalization
+        self.REW_SHIFT = rew_shift
+        self.REW_SCALE = rew_scale
+        self.ACTION_SCALE = action_scale
 
     def normalize_obs(self, observation):
         if self.OBS_NORMALIZATION == "simple":
             if self.OBS_SHIFT is not None:
                 observation += self.OBS_SHIFT
-            if self.OBS_SHIFT is not None:
+            if self.OBS_SCALE is not None:
                 observation /= self.OBS_SCALE
         return observation
+
+    def normalize_rew(self, reward):
+        if self.REW_NORMALIZATION == "simple":
+            if self.REW_SHIFT is not None:
+                reward += self.REW_SHIFT
+            if self.REW_SCALE is not None:
+                reward /= self.REW_SCALE
+        return reward
 
     def learn(self):
 
@@ -55,6 +70,9 @@ class PPO():
         device = self.DEVICE
         print("Device: ", device)
         env = gym.make(self.ENV_NAME)
+
+        log_filename = "./"+self.ENV_NAME+".csv"
+        log_data = [["Episode", "End Step", "Episodic Reward"]]
 
         self.env = env
 
@@ -73,7 +91,7 @@ class PPO():
             actor_critic = ActorCritic(state_dim, n_actions).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
-            actor_critic = ActorCriticContinuous(state_dim, action_dim).to(device)
+            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
@@ -118,13 +136,17 @@ class PPO():
 
                         action = action[0].cpu().numpy()
                     next_state, reward, done, info = env.step(action)
+
                     episodic_reward += reward
+
+                    reward = self.normalize_rew(reward)
                     self.buffer.add(_state, action, reward, done, log_prob)
                 
                 if done:
                     next_state = env.reset()
                     episodes_passed += 1
                     episodic_returns.append(episodic_reward)
+                    log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
                     episodic_reward = 0
 
                 _state = next_state
@@ -198,7 +220,13 @@ class PPO():
                     print("Saved!")
                     high_score = evaluation_score
                     torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
+            with open(log_filename,'w',newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(log_data)
             print("Training time = ", t_train_end - t_train_start)
+        with open(log_filename,'w',newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(log_data)
     def evaluate(self):
         device = self.DEVICE
         total_reward = 0

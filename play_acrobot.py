@@ -12,7 +12,8 @@ state_dim = env.observation_space.shape[0]
 n_actions = env.action_space.n
 actor_critic = ActorCritic(state_dim, n_actions)
 actor_critic.load_state_dict(torch.load("./Acrobot-v1.pt"))
-for episode in range(5):
+total_reward = 0
+for episode in range(1):
     state = env.reset()
     done = False
     while not done:
@@ -25,5 +26,7 @@ for episode in range(5):
         env.render()
         time.sleep(1/fps)
         next_state, reward, done, info = env.step(action)
+        total_reward += reward
         state = next_state
 env.close()
+print(total_reward)

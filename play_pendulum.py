@@ -1,32 +1,28 @@
 import gym
 import torch
 import time
-import pybullet_envs
-from gym.wrappers import Monitor
 
 n_episodes = 2
 
 fps = 30
-from net import ActorCriticContinuous
+from net import ActorCritic, ActorCriticContinuous
 
-# env = gym.make("HalfCheetahBulletEnv-v0")
-env = Monitor(gym.make('HalfCheetahBulletEnv-v0'), './video', force=True)
+env = gym.make("Pendulum-v0")
+state_dim = env.observation_space.shape[0]
+action_dim = env.action_space.shape[0]
+actor_critic = ActorCriticContinuous(state_dim, action_dim, 2)
+actor_critic.load_state_dict(torch.load("./Pendulum-v0.pt"))
 
-print(env.action_space.shape)
-print(env.observation_space.shape)
-
-
-actor_critic = ActorCriticContinuous(26, 6)
-actor_critic.load_state_dict(torch.load("./HalfCheetahBulletEnv-v0.pt"))
-env.render()
 state = env.reset()
 done = False
 total_reward = 0
 while not done:
+    state[2] /= 8
+    # print(state)
     state = state[None,:]
+    # state = torch.tensor(state).float()#.cuda()
+
     with torch.no_grad():
-        state += [0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0,0,0,-0.5,-0.5,-0.5,-0.5,-0.5,-.5]
-        state /= [0.3, 1, 1, 2, 1, 1, 1, 4, 1, 3, 1, -1, 1, 5, 1, 5, 1, 1,1,1,1,1,1,1,1,1]
         state = torch.as_tensor(state).float()#.to(device)
 
         # action_params, _ = actor_critic(state)
@@ -37,6 +33,7 @@ while not done:
         # print(mu, log_sigma)
         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
         action = distrib.sample((1,))
+        action = torch.clip(action, -1, 1)
         # print(action)
         log_prob = distrib.log_prob(action).sum(dim=1).item()
 
