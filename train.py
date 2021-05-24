@@ -5,6 +5,7 @@ Utility script to train diff gym compatible libraries with ppo
 """
 import argparse
 import yaml
+import pybullet_envs
 from ppo import PPO
 
 parser = argparse.ArgumentParser()
