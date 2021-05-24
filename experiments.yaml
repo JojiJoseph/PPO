@@ -1,0 +1,6 @@
+cartpole_0:
+  learning_rate: 0.01
+  env_name: "CartPole-v0"
+cartpole_1:
+  learning_rate: 0.001
+  env_name: "CartPole-v1"
