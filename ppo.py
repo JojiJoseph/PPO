@@ -12,6 +12,8 @@ import numpy as np
 import gym
 import time
 
+import csv
+
 from rollout_buffer import RolloutBuffer
 
 
@@ -68,6 +70,9 @@ class PPO():
         device = self.DEVICE
         print("Device: ", device)
         env = gym.make(self.ENV_NAME)
+
+        log_filename = "./"+self.ENV_NAME+".csv"
+        log_data = [["Episode", "End Step", "Episodic Reward"]]
 
         self.env = env
 
@@ -141,6 +146,7 @@ class PPO():
                     next_state = env.reset()
                     episodes_passed += 1
                     episodic_returns.append(episodic_reward)
+                    log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
                     episodic_reward = 0
 
                 _state = next_state
@@ -214,7 +220,13 @@ class PPO():
                     print("Saved!")
                     high_score = evaluation_score
                     torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
+            with open(log_filename,'w',newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(log_data)
             print("Training time = ", t_train_end - t_train_start)
+        with open(log_filename,'w',newline='') as file:
+                writer = csv.writer(file)
+                writer.writerows(log_data)
     def evaluate(self):
         device = self.DEVICE
         total_reward = 0
