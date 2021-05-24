@@ -2,13 +2,15 @@ import gym
 import torch
 import time
 import pybullet_envs
+from gym.wrappers import Monitor
 
 n_episodes = 2
 
 fps = 30
 from net import ActorCriticContinuous
 
-env = gym.make("HalfCheetahBulletEnv-v0")
+# env = gym.make("HalfCheetahBulletEnv-v0")
+env = Monitor(gym.make('HalfCheetahBulletEnv-v0'), './video', force=True)
 
 print(env.action_space.shape)
 print(env.observation_space.shape)
@@ -19,9 +21,12 @@ actor_critic.load_state_dict(torch.load("./HalfCheetahBulletEnv-v0.pt"))
 env.render()
 state = env.reset()
 done = False
+total_reward = 0
 while not done:
     state = state[None,:]
     with torch.no_grad():
+        state += [0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0,0,0,-0.5,-0.5,-0.5,-0.5,-0.5,-.5]
+        state /= [0.3, 1, 1, 2, 1, 1, 1, 4, 1, 3, 1, -1, 1, 5, 1, 5, 1, 1,1,1,1,1,1,1,1,1]
         state = torch.as_tensor(state).float()#.to(device)
 
         # action_params, _ = actor_critic(state)
@@ -41,5 +46,7 @@ while not done:
         # print(action)
     env.render()
     state, reward, done, info = env.step(action)
+    total_reward += reward
     time.sleep(1/fps)
 env.close()
+print(total_reward)
