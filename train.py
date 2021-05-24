@@ -20,7 +20,9 @@ print(args)
 experiment = args.exp
 hyperparams = experiments[experiment]
 
-algo = PPO(device="cpu",**hyperparams)
+print(hyperparams)
+
+algo = PPO(**hyperparams)
 
 algo.learn()
 
