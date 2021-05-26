@@ -24,7 +24,7 @@ class PPO():
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
-        action_scale=1):
+        action_scale=1, namespace=None):
 
         self.LEARNING_RATE = 1e-3
         self.ENV_NAME = env_name
@@ -47,6 +47,7 @@ class PPO():
         self.REW_SHIFT = rew_shift
         self.REW_SCALE = rew_scale
         self.ACTION_SCALE = action_scale
+        self.NAMESPACE = namespace
 
     def normalize_obs(self, observation):
         if self.OBS_NORMALIZATION == "simple":
@@ -70,8 +71,10 @@ class PPO():
         device = self.DEVICE
         print("Device: ", device)
         env = gym.make(self.ENV_NAME)
-
-        log_filename = "./"+self.ENV_NAME+".csv"
+        if self.NAMESPACE:
+            log_filename = "./" + self.NAMESPACE + ".csv"
+        else:
+            log_filename = "./"+self.ENV_NAME+".csv"
         log_data = [["Episode", "End Step", "Episodic Reward"]]
 
         self.env = env
@@ -219,7 +222,10 @@ class PPO():
                 if evaluation_score > high_score:
                     print("Saved!")
                     high_score = evaluation_score
-                    torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
+                    if self.NAMESPACE:
+                        torch.save(actor_critic.state_dict(), "./" + self.NAMESPACE + ".pt")
+                    else:
+                        torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
             with open(log_filename,'w',newline='') as file:
                 writer = csv.writer(file)
                 writer.writerows(log_data)

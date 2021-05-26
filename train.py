@@ -23,7 +23,7 @@ hyperparams = experiments[experiment]
 
 print(hyperparams)
 
-algo = PPO(**hyperparams)
+algo = PPO(namespace=experiment, **hyperparams)
 
 algo.learn()
 
