@@ -87,6 +87,53 @@ car_e4:
   obs_scale: [0.5,0.04]
   coeff_entropy: 0.001
   # n_timesteps: !!float 5e4
+ccar_no_norm:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  # obs_normalization: "simple"
+  # obs_shift: [0.5,0]
+  # obs_scale: [0.5,0.04]
+  # coeff_entropy: 0.001
+
+
+ccar_no_norm_e1:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.001
+ccar_no_norm_e2:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.01
+ccar_no_norm_e3:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.1
+ccar_no_norm_e4:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 1
+
+# python train.py -e ccar_no_norm & python train.py -e ccar_no_norm_e1 & python train.py -e ccar_no_norm_e2 & python train.py -e ccar_no_norm_e3 & python train.py -e ccar_no_norm_e4
 
 car_discrete:
   learning_rate: !!float 1e-3

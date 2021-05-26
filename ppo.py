@@ -198,8 +198,9 @@ class PPO():
                         entropy_loss = -distrib.entropy().mean()
                     else:
                         mu, log_sigma = action_params
-                        entropy_loss = 0 # TODO
-                        log_prob = torch.distributions.Normal(mu, log_sigma.exp()).log_prob(actions).sum(dim=1)
+                        distrib = torch.distributions.Normal(mu, log_sigma.exp())
+                        log_prob = distrib.log_prob(actions).sum(dim=1)
+                        entropy_loss = distrib.entropy().sum(dim=1).mean()
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
