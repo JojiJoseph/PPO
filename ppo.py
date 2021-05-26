@@ -12,6 +12,8 @@ import numpy as np
 import gym
 import time
 
+import os
+
 import csv
 
 from rollout_buffer import RolloutBuffer
@@ -48,6 +50,9 @@ class PPO():
         self.REW_SCALE = rew_scale
         self.ACTION_SCALE = action_scale
         self.NAMESPACE = namespace
+        if namespace:
+            os.makedirs("./results/" + namespace, exist_ok=True)
+            self.save_dir = "./results/" + namespace
 
     def normalize_obs(self, observation):
         if self.OBS_NORMALIZATION == "simple":
@@ -72,7 +77,7 @@ class PPO():
         print("Device: ", device)
         env = gym.make(self.ENV_NAME)
         if self.NAMESPACE:
-            log_filename = "./" + self.NAMESPACE + ".csv"
+            log_filename = self.save_dir + "/result.csv"
         else:
             log_filename = "./"+self.ENV_NAME+".csv"
         log_data = [["Episode", "End Step", "Episodic Reward"]]
@@ -223,7 +228,7 @@ class PPO():
                     print("Saved!")
                     high_score = evaluation_score
                     if self.NAMESPACE:
-                        torch.save(actor_critic.state_dict(), "./" + self.NAMESPACE + ".pt")
+                        torch.save(actor_critic.state_dict(), self.save_dir + "/model.pt")
                     else:
                         torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
             with open(log_filename,'w',newline='') as file:
