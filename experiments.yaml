@@ -23,6 +23,71 @@ cartpole_1_e3:
 cartpole_1_1:
   learning_rate: 1
   env_name: "CartPole-v1"
+
+car_e0:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  # n_timesteps: !!float 5e4
+
+car_e1:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.01
+  # n_timesteps: !!float 5e4
+
+car_e2:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.1
+  # n_timesteps: !!float 5e4
+
+car_e3:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 1
+  # n_timesteps: !!float 5e4
+
+car_e4:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.001
+  # n_timesteps: !!float 5e4
+
 car_discrete:
   learning_rate: !!float 1e-3
   n_epochs: 4
@@ -85,3 +150,6 @@ ch2:
   rew_normalization: "simple"
   rew_shift: 3
   rew_scale: 3
+
+# Examples
+# python train.py -e car_e0 & python train.py -e car_e1 & python train.py -e car_e2 & python train.py -e car_e3 & python train.py -e car_e4

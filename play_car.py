@@ -13,7 +13,7 @@ from net import ActorCritic
 env = Monitor(gym.make('MountainCar-v0'), './video', force=True)
 
 actor_critic = ActorCritic(env.observation_space.shape[0], env.action_space.n)
-actor_critic.load_state_dict(torch.load("./MountainCar-v0.pt"))
+actor_critic.load_state_dict(torch.load("./results/car_e4/model.pt"))
 
 state = env.reset()
 done = False
