@@ -4,3 +4,246 @@ cartpole_0:
 cartpole_1:
   learning_rate: 0.001
   env_name: "CartPole-v1"
+  n_timesteps: !!float 5e4
+cartpole_1_e1:
+  learning_rate: 0.001
+  coeff_entropy: 0.01
+  n_timesteps: !!float 1e5
+  env_name: "CartPole-v1"
+  device: "cpu"
+cartpole_1_e2:
+  learning_rate: 0.001
+  coeff_entropy: 0.1
+  n_timesteps: !!float 5e4
+  env_name: "CartPole-v1"
+cartpole_1_e3:
+  learning_rate: 0.001
+  coeff_entropy: 1
+  n_timesteps: !!float 5e4
+  env_name: "CartPole-v1"
+cartpole_1_1:
+  learning_rate: 1
+  env_name: "CartPole-v1"
+
+car_e0:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  # n_timesteps: !!float 5e4
+
+car_e1:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.01
+  # n_timesteps: !!float 5e4
+
+car_e2:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.1
+  # n_timesteps: !!float 5e4
+
+car_e3:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 1
+  # n_timesteps: !!float 5e4
+
+car_e4:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.001
+  # n_timesteps: !!float 5e4
+ccar_no_norm:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  # obs_normalization: "simple"
+  # obs_shift: [0.5,0]
+  # obs_scale: [0.5,0.04]
+  # coeff_entropy: 0.001
+
+
+ccar_no_norm_e1:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.001
+ccar_no_norm_e2:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.01
+ccar_no_norm_e3:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 0.1
+ccar_no_norm_e4:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  coeff_entropy: 1
+
+# python train.py -e ccar_no_norm & python train.py -e ccar_no_norm_e1 & python train.py -e ccar_no_norm_e2 & python train.py -e ccar_no_norm_e3 & python train.py -e ccar_no_norm_e4
+
+car_discrete:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+car_continuous:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCarContinuous-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+
+lunar_d: # Lunar Lander Discrete
+  env_name: "LunarLander-v2"
+  learning_rate: !!float 1e-3
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 256
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  coeff_entropy: 0.01
+
+lunar_c:
+  env_name: "LunarLanderContinuous-v2"
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 256
+  n_rollout_timesteps: 256
+  device: "cpu"
+
+cheetah:
+  env_name: "HalfCheetahBulletEnv-v0"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 1024
+  n_rollout_timesteps: 8096
+  # device: "cuda"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  # coeff_entropy: 0.01
+  obs_normalization: "simple"
+  obs_shift: !!seq [0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0,0,0,-0.5,-0.5,-0.5,-0.5,-0.5,-0.5]
+  obs_scale: !!seq [0.3, 1, 1, 2, 1, 1, 1, 4, 1, 3, 1, -1, 1, 5, 1, 5, 1, 1,1,1,1,1,1,1,1,1]
+  #rew_normalization: "simple"
+  #rew_shift: 3
+  #rew_scale: 3
+ch2:
+  env_name: "HalfCheetahBulletEnv-v0"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  # coeff_entropy: 0.01
+  obs_normalization: "simple"
+  obs_shift: !!seq [0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0,0,0,-0.5,-0.5,-0.5,-0.5,-0.5,-0.5]
+  obs_scale: !!seq [0.3, 1, 1, 2, 1, 1, 1, 4, 1, 3, 1, -1, 1, 5, 1, 5, 1, 1,1,1,1,1,1,1,1,1]
+  #rew_normalization: "simple"
+  #rew_shift: 3
+  #rew_scale: 3
+
+# Examples
+# python train.py -e car_e0 & python train.py -e car_e1 & python train.py -e car_e2 & python train.py -e car_e3 & python train.py -e car_e4
+
+biped:
+  env_name: "BipedalWalker-v3"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  # obs_normalization: "simple"
+  # obs_shift: !!seq [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0.5 ,0.5, 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+  # obs_scale: !!seq [1,1,1,1,1,1,1,1,0.5,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+
+acro:
+  env_name: "Acrobot-v1"
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 256
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  coeff_entropy: 0.01
+  obs_normalization: "simple"
+  obs_scale: [1,1,1,1,10,10]
