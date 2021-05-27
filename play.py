@@ -1,31 +1,28 @@
-import gym
 import torch
-import time
-import argparse
+import gym
 from gym.wrappers import Monitor
+import argparse
+import time
 import yaml
 import pybullet_envs
-n_episodes = 1
+
+from net import ActorCritic, ActorCriticContinuous
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
 
-fps = 30
-from net import ActorCritic, ActorCriticContinuous
 with open("./experiments.yaml") as f:
     experiments = yaml.safe_load(f)
 
 args = parser.parse_args()
-
-print(args)
-
 experiment = args.exp
-print(experiment)
 hyperparams = experiments[experiment]
-print(hyperparams)
+fps = 30
+
 env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
 
 state_dim = env.observation_space.shape[0]
+
 if type(env.action_space) == gym.spaces.Discrete:
     n_actions = env.action_space.n
     actor_critic = ActorCritic(state_dim, n_actions)
@@ -33,7 +30,6 @@ elif type(env.action_space) == gym.spaces.Box:
     action_dim = env.action_space.shape[0]
     actor_critic = ActorCriticContinuous(state_dim, action_dim)
 
-# actor_critic = ActorCritic(4, 2)
 actor_critic.load_state_dict(torch.load("./results/" + experiment + "/model.pt"))
 
 obs_normalization = None
@@ -53,10 +49,12 @@ def normalize_obs(observation):
         if obs_scale is not None:
             observation /= obs_scale
     return observation
+
 try:
-    env.render()
+    env.render() # Should call render function before reset for pybullet environments
 except:
     pass
+
 state = env.reset()
 done = False
 total_reward = 0

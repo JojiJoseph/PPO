@@ -269,7 +269,7 @@ class PPO():
 
                     action_params, _ = actor_critic(state)
                     if type(env.action_space) == gym.spaces.Discrete:
-                        action = torch.argmax(torch.softmax(action_params[0],-1))
+                        action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
                     else:
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())

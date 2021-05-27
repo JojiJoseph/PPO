@@ -156,7 +156,18 @@ car_continuous:
   obs_normalization: "simple"
   obs_shift: [0.5,0]
   obs_scale: [0.5,0.04]
-lunar_continuous:
+
+lunar_d: # Lunar Lander Discrete
+  env_name: "LunarLander-v2"
+  learning_rate: !!float 1e-3
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 256
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  coeff_entropy: 0.01
+
+lunar_c:
   env_name: "LunarLanderContinuous-v2"
   learning_rate: !!float 1e-4
   n_timesteps: !!float 1e6
@@ -164,6 +175,7 @@ lunar_continuous:
   batch_size: 256
   n_rollout_timesteps: 256
   device: "cpu"
+
 cheetah:
   env_name: "HalfCheetahBulletEnv-v0"
   learning_rate: !!float 3e-4
@@ -223,3 +235,15 @@ biped:
   # obs_normalization: "simple"
   # obs_shift: !!seq [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0.5 ,0.5, 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
   # obs_scale: !!seq [1,1,1,1,1,1,1,1,0.5,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+
+acro:
+  env_name: "Acrobot-v1"
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 256
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  coeff_entropy: 0.01
+  obs_normalization: "simple"
+  obs_scale: [1,1,1,1,10,10]
