@@ -136,14 +136,14 @@ class PPO():
                     state = torch.as_tensor(state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
-                        prob_params, value = actor_critic(state)
+                        prob_params, _ = actor_critic(state)
                         distrib = torch.distributions.Categorical(logits=prob_params[0])
                         action = distrib.sample((1,))
                         log_prob = distrib.log_prob(action).item()
 
                         action = action[0].cpu().numpy()
                     else:
-                        prob_params, value = actor_critic(state)
+                        prob_params, _ = actor_critic(state)
                         mu, log_sigma = prob_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))
@@ -155,7 +155,7 @@ class PPO():
                     episodic_reward += reward
 
                     reward = self.normalize_rew(reward)
-                    self.buffer.add(_state, action, reward, done, log_prob, value.detach().numpy())
+                    self.buffer.add(_state, action, reward, done, log_prob)
                 
                 if done:
                     next_state = env.reset()
@@ -180,10 +180,10 @@ class PPO():
                 _, last_value = actor_critic(state)
                 last_value = last_value[0].cpu().numpy().item()
 
-            self.buffer.compute_values(last_value, 0.99, 0.99)
+            self.buffer.compute_values(last_value)
 
             for epoch in range(self.N_EPOCHS):
-                for states, actions, advantages, values, old_log_prob in self.buffer:
+                for states, actions, values, old_log_prob in self.buffer:
                     if type(env.action_space) == gym.spaces.Discrete:
                         actions = torch.as_tensor(actions).long().flatten().to(device)
                     else:
@@ -192,14 +192,14 @@ class PPO():
                     states = torch.as_tensor(states).to(device)
                     values = torch.as_tensor(values).flatten().to(device)
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
-                    advantages = torch.as_tensor(advantages).flatten().to(device)
+
                     opt.zero_grad()
                     action_params, values_pred = actor_critic(states)
                     values_pred = values_pred.flatten()
 
                     loss_critic = self.COEFF_V * F.mse_loss(values_pred,values)
-                    # print(advantages.shape, values.shape)
-                    # advantages = values - values_pred.detach()
+                    
+                    advantages = values - values_pred.detach()
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
 

@@ -42,7 +42,7 @@ y5 = df.values[:,2]
 # y = np.random.randint(0,100, (100,))
 # y_max = y + np.random.randint(0,50, (100,))
 # y_min = y - np.random.randint(0,50, (100,))
-def smooth(y, q_size=100):
+def smooth(y, q_size=10):
     q = Deque(maxlen=q_size)
     y_avg = []
     for item in y:
@@ -67,7 +67,7 @@ plt.show()
 plt.plot(x1, y1_smooth, label="0.0")
 plt.plot(x2, y2_smooth, label="0.01")
 plt.plot(x3, y3_smooth, label="0.1")
-# plt.plot(x4, y4_smooth, label="1")
+plt.plot(x4, y4_smooth, label="1")
 plt.plot(x5, y5_smooth, label="0.001")
 plt.legend()
 # plt.fill_between(x,y_min, y_max)
