@@ -29,15 +29,11 @@ class RolloutBuffer():
         self.idx += 1
         
     def compute_values(self, last_value=0,gamma=0.99, lda=1.0):
-
         n = self.idx
-
-        running_sum = last_value
         prev_adv = 0
         for i in range(n-1,-1,-1):
             if self.dones[i]:
                 delta = self.rewards[i] - self.values[i]
-                # last_value = 0
             else:
                 delta = self.rewards[i] + gamma*last_value - self.values[i]
             adv = delta + lda*gamma*prev_adv
@@ -45,11 +41,6 @@ class RolloutBuffer():
             last_value = self.values[i]
             self.advantages[i] = adv
             self.returns[i] = adv + self.values[i]
-            # if self.dones[i]:
-            #     running_sum = self.rewards[i]
-            # else:
-            #     running_sum = self.rewards[i] + gamma*running_sum
-            # self.values[i] =  running_sum
     def clear(self):
         self.idx = 0
 
