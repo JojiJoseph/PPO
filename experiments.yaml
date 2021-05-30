@@ -25,6 +25,11 @@ cartpole_1_1:
   learning_rate: 1
   env_name: "CartPole-v1"
 
+cartpole_exp:
+  learning_rate: 0.01
+  env_name: "CartPole-v0"
+  device: "cpu"
+
 car_e0:
   learning_rate: !!float 1e-3
   n_epochs: 4

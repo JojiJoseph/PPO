@@ -23,7 +23,7 @@ class PPO():
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
-        action_scale=1, net_size=64, namespace=None):
+        action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99):
 
         self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
@@ -48,6 +48,8 @@ class PPO():
         self.ACTION_SCALE = action_scale
         self.NET_SIZE = net_size
         self.NAMESPACE = namespace
+        self.GAMMA = gamma
+        self.LDA = lda
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
             self.save_dir = "./results/" + namespace
@@ -167,7 +169,7 @@ class PPO():
                 _, last_value = actor_critic(state)
                 last_value = last_value[0].cpu().numpy().item()
 
-            self.buffer.compute_values(last_value, 0.99, 0.99)
+            self.buffer.compute_values(last_value, self.GAMMA, self.LDA)
 
             for epoch in range(self.N_EPOCHS):
                 for states, actions, advantages, values, old_log_prob in self.buffer:
@@ -196,7 +198,7 @@ class PPO():
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu, log_sigma.exp())
                         log_prob = distrib.log_prob(actions).sum(dim=1)
-                        entropy_loss = distrib.entropy().sum(dim=1).mean()
+                        entropy_loss = -distrib.entropy().sum(dim=1).mean()
 
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
