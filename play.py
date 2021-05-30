@@ -25,12 +25,16 @@ state_dim = env.observation_space.shape[0]
 size = 64
 if "net_size" in hyperparams:
     size = hyperparams["net_size"]
+if "action_scale" in hyperparams:
+    action_scale = hyperparams["action_scale"]
+else:
+    action_scale = 1
 if type(env.action_space) == gym.spaces.Discrete:
     n_actions = env.action_space.n
     actor_critic = ActorCritic(state_dim, n_actions)
 elif type(env.action_space) == gym.spaces.Box:
     action_dim = env.action_space.shape[0]
-    actor_critic = ActorCriticContinuous(state_dim, action_dim, size=size)
+    actor_critic = ActorCriticContinuous(state_dim, action_dim, action_scale=action_scale, size=size)
 
 actor_critic.load_state_dict(torch.load("./results/" + experiment + "/model.pt"))
 

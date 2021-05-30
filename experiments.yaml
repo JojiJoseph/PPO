@@ -243,6 +243,29 @@ biped:
   obs_shift: !!seq [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0.5 ,0.5, 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
   obs_scale: !!seq [1,1,1,1,1,1,1,1,0.5,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
 
+biped_hard:
+  env_name: "BipedalWalkerHardcore-v3"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 4096
+  n_rollout_timesteps: 4096
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 32
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 256
+  obs_normalization: "simple"
+  obs_shift: !!seq [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0.5 ,0.5, 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+  obs_scale: !!seq [1,1,1,1,1,1,1,1,0.5,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+
 acro:
   env_name: "Acrobot-v1"
   learning_rate: !!float 1e-4
@@ -254,3 +277,18 @@ acro:
   coeff_entropy: 0.01
   obs_normalization: "simple"
   obs_scale: [1,1,1,1,10,10]
+
+pendulum:
+  env_name: "Pendulum-v0"
+  learning_rate: !!float 1e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 16
+  batch_size: 1024
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  lda: 0.95
+  gamma: 0.98
+  net_size: 512
+  action_scale: 2
+  n_eval_episodes: 20
+  # coeff_entropy: 0.01
