@@ -2,33 +2,30 @@
 Class PPO Algorithm
 """
 
-from typing import Deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import gym
 import numpy as np
 
-import gym
+from typing import Deque
+import csv
 import time
-
 import os
 
-import csv
-
 from rollout_buffer import RolloutBuffer
-
-
 from net import ActorCritic, ActorCriticContinuous
 
+DEBUG = False
+
 class PPO():
-    def __init__(self, actor=None, critic=None, learning_rate=1e-3, env_name="CartPole-v1",
+    def __init__(self, learning_rate=1e-3, env_name="CartPole-v1",
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
-        action_scale=1, namespace=None):
+        action_scale=1, net_size=64, namespace=None):
 
-        self.LEARNING_RATE = 1e-3
+        self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
         self.N_TIMESTEPS = n_timesteps
         self.BATCH_SIZE = batch_size
@@ -49,6 +46,7 @@ class PPO():
         self.REW_SHIFT = rew_shift
         self.REW_SCALE = rew_scale
         self.ACTION_SCALE = action_scale
+        self.NET_SIZE = net_size
         self.NAMESPACE = namespace
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
@@ -86,20 +84,15 @@ class PPO():
 
         episodic_returns = Deque(maxlen=100)
 
-        if type(env.action_space) == gym.spaces.Discrete:
-            n_actions = env.action_space.n
-        elif type(env.action_space) == gym.spaces.Box:
-            action_dim = env.action_space.shape[0]
-        else:
-            raise NotImplementedError
         state_dim = env.observation_space.shape[0]
 
-
         if type(env.action_space) == gym.spaces.Discrete:
-            actor_critic = ActorCritic(state_dim, n_actions).to(device)
+            n_actions = env.action_space.n
+            actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
-            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE).to(device)
+            action_dim = env.action_space.shape[0]
+            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
@@ -112,23 +105,17 @@ class PPO():
         iteration = 0
         _state = env.reset() # Unconverted state
         episodic_reward = 0
-        if False: # For debugging purpose
+        if DEBUG: # For debugging purpose
             min_state = [np.inf]*env.observation_space.shape[0]
             max_state = [-np.inf]*env.observation_space.shape[0]
             shift = 0
         while total_timesteps < self.N_TIMESTEPS:
-            
             rollout_timesteps = 0
-            
-            rollout_start_time = time.time()
-            
             self.buffer.clear()
-            
-
             t_train_start = time.time()
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
                 with torch.no_grad():
-                    if False:
+                    if DEBUG:
                         min_state = np.minimum(min_state, _state)
                         max_state = np.maximum(max_state,_state)
                     _state = self.normalize_obs(_state) 
@@ -168,7 +155,7 @@ class PPO():
 
                 rollout_timesteps += 1
                 total_timesteps += 1
-            if False:
+            if DEBUG:
                 print(min_state)
                 print(max_state)
                 shift=- (max_state + min_state)/2
@@ -198,16 +185,12 @@ class PPO():
                     values_pred = values_pred.flatten()
 
                     loss_critic = self.COEFF_V * F.mse_loss(values_pred,values)
-                    # print(advantages.shape, values.shape)
-                    # advantages = values - values_pred.detach()
                     advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
 
                     if type(env.action_space) == gym.spaces.Discrete:
                         distrib = torch.distributions.Categorical(logits=action_params)
                         log_prob = distrib.log_prob(actions)
-                        # print(distrib.entropy().shape)
-                        # entropy = 0
                         entropy_loss = -distrib.entropy().mean()
                     else:
                         mu, log_sigma = action_params
@@ -252,6 +235,7 @@ class PPO():
         with open(log_filename,'w',newline='') as file:
                 writer = csv.writer(file)
                 writer.writerows(log_data)
+    
     def evaluate(self):
         device = self.DEVICE
         total_reward = 0
