@@ -23,7 +23,7 @@ class PPO():
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
-        action_scale=1, namespace=None):
+        action_scale=1, net_size=64, namespace=None):
 
         self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
@@ -46,6 +46,7 @@ class PPO():
         self.REW_SHIFT = rew_shift
         self.REW_SCALE = rew_scale
         self.ACTION_SCALE = action_scale
+        self.NET_SIZE = net_size
         self.NAMESPACE = namespace
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
@@ -87,11 +88,11 @@ class PPO():
 
         if type(env.action_space) == gym.spaces.Discrete:
             n_actions = env.action_space.n
-            actor_critic = ActorCritic(state_dim, n_actions).to(device)
+            actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
             action_dim = env.action_space.shape[0]
-            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE).to(device)
+            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
             self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
