@@ -2,6 +2,7 @@
 Class PPO Algorithm
 """
 
+from frame_stack_wrapper import FrameStackWrapper
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,7 +15,7 @@ import time
 import os
 
 from rollout_buffer import RolloutBuffer
-from net import ActorCritic, ActorCriticContinuous
+from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos
 
 DEBUG = False
 
@@ -23,7 +24,8 @@ class PPO():
         n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
-        action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99):
+        action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99, wrapper=None, policy=None,
+        thresh_min_return=None, wrappers=[]):
 
         self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
@@ -50,6 +52,9 @@ class PPO():
         self.NAMESPACE = namespace
         self.GAMMA = gamma
         self.LDA = lda
+        self.THRESH_MIN_RETURN = thresh_min_return
+        self.WRAPPERS = wrappers
+        self.POLICY = policy
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
             self.save_dir = "./results/" + namespace
@@ -70,12 +75,37 @@ class PPO():
                 reward /= self.REW_SCALE
         return reward
 
+    def create_env(self):
+        env = gym.make(self.ENV_NAME)
+        if "frame_stack" in self.WRAPPERS:
+            env = FrameStackWrapper(env)
+        return env
+
+    def create_network(self):
+        env = self.env
+        device = self.DEVICE
+        state_dim = env.observation_space.shape[0]
+        if type(env.action_space) == gym.spaces.Discrete:
+                n_actions = env.action_space.n
+                actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
+                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
+        elif type(env.action_space) == gym.spaces.Box:
+            action_dim = env.action_space.shape[0]
+            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
+            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
+            if self.POLICY == "cnn_car_racing":
+                actor_critic = CnnActorCriticContinuos(4, action_dim).to(device)
+                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, 96*96*4)
+        else:
+            raise NotImplementedError
+        return actor_critic
+
     def learn(self):
 
         high_score = -np.inf
         device = self.DEVICE
         print("Device: ", device)
-        env = gym.make(self.ENV_NAME)
+        env = self.create_env()
         if self.NAMESPACE:
             log_filename = self.save_dir + "/result.csv"
         else:
@@ -88,16 +118,19 @@ class PPO():
 
         state_dim = env.observation_space.shape[0]
 
-        if type(env.action_space) == gym.spaces.Discrete:
-            n_actions = env.action_space.n
-            actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
-            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
-        elif type(env.action_space) == gym.spaces.Box:
-            action_dim = env.action_space.shape[0]
-            actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
-            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
-        else:
-            raise NotImplementedError
+        # if type(env.action_space) == gym.spaces.Discrete:
+        #     n_actions = env.action_space.n
+        #     actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
+        #     self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
+        # elif type(env.action_space) == gym.spaces.Box:
+        #     action_dim = env.action_space.shape[0]
+        #     # actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
+        #     actor_critic = CnnActorCriticContinuos(4, action_dim).to(device)
+        #     self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, 96*96*4)#state_dim)
+        # else:
+        #     raise NotImplementedError
+
+        actor_critic = self.create_network()
         
         total_timesteps = 0
 
@@ -144,14 +177,19 @@ class PPO():
                     episodic_reward += reward
 
                     reward = self.normalize_rew(reward)
-                    self.buffer.add(_state, action, reward, done, log_prob, value.detach().numpy())
-                
+                    value = value.cpu().detach().numpy()
+                    if self.THRESH_MIN_RETURN and episodic_reward < self.THRESH_MIN_RETURN:
+                        done = True
+                    self.buffer.add(_state.flatten(), action, reward, done, log_prob, value)
                 if done:
                     next_state = env.reset()
                     episodes_passed += 1
                     episodic_returns.append(episodic_reward)
                     log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
                     episodic_reward = 0
+                    env.close()
+                    env = self.create_env()
+                    env.reset()
 
                 _state = next_state
 
@@ -179,6 +217,8 @@ class PPO():
                         actions = torch.as_tensor(actions).float().to(device)
 
                     states = torch.as_tensor(states).to(device)
+                    if self.POLICY == "cnn_car_racing":
+                        states = states.reshape(self.BATCH_SIZE, 4, 96, 96).float()
                     values = torch.as_tensor(values).flatten().to(device)
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
                     advantages = torch.as_tensor(advantages).flatten().to(device)
@@ -209,6 +249,11 @@ class PPO():
                     if self.MAX_GRAD_NORM is not None:
                         torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
                     opt.step()
+                    del states
+                    del loss
+                    del l1
+                    del l2
+                    del advantages
             self.buffer.clear()
 
             iteration += 1
@@ -223,7 +268,7 @@ class PPO():
                 t_evaluation_end = time.time()
                 print("Evaluation_time = ", t_evaluation_end - t_evaluation_start)
                 print("Avg. Return (evaluation) = ", evaluation_score)
-                if evaluation_score > high_score:
+                if evaluation_score >= high_score:
                     print("Saved!")
                     high_score = evaluation_score
                     if self.NAMESPACE:
@@ -243,7 +288,9 @@ class PPO():
         total_reward = 0
         env = self.env
         actor_critic = self.actor_critc
-        env = gym.make(self.ENV_NAME) # Eval env
+
+        env = self.create_env()
+        # env = self.eval_env
         for episode in range(self.N_EVAL_EPISODES):
             _state = env.reset()
             done = False
@@ -260,7 +307,7 @@ class PPO():
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
-                    action = action.cpu().numpy()
+                action = action.detach().cpu().numpy()
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward

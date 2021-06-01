@@ -1,3 +1,4 @@
+from frame_stack_wrapper import FrameStackWrapper
 import torch
 import gym
 from gym.wrappers import Monitor
@@ -6,7 +7,7 @@ import time
 import yaml
 import pybullet_envs
 
-from net import ActorCritic, ActorCriticContinuous
+from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
@@ -20,7 +21,9 @@ hyperparams = experiments[experiment]
 fps = 30
 
 env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
-
+if "wrappers" in hyperparams:
+    if "frame_stack" in hyperparams["wrappers"]:
+        env = FrameStackWrapper(env)
 state_dim = env.observation_space.shape[0]
 size = 64
 if "net_size" in hyperparams:
@@ -35,7 +38,8 @@ if type(env.action_space) == gym.spaces.Discrete:
 elif type(env.action_space) == gym.spaces.Box:
     action_dim = env.action_space.shape[0]
     actor_critic = ActorCriticContinuous(state_dim, action_dim, action_scale=action_scale, size=size)
-
+if "policy" in hyperparams and hyperparams["policy"] == "cnn_car_racing":
+    actor_critic = CnnActorCriticContinuos(4, action_dim)
 actor_critic.load_state_dict(torch.load("./results/" + experiment + "/model.pt"))
 
 obs_normalization = None
