@@ -344,8 +344,9 @@ breakout:
   learning_rate: !!float 3e-5
   wrappers: ["atari_wrapper"]
   batch_size: 512
-  n_rollout_timesteps: 512
+  n_rollout_timesteps: 2048
   clip_range: 0.2
+  adv_normalization: !!bool False
   lda: 1
   # net_size: 1024
   policy: "cnn_atari"
@@ -378,11 +379,12 @@ pong:
   learning_rate: !!float 3e-5
   wrappers: ["atari_wrapper"]
   batch_size: 512
-  n_rollout_timesteps: 512
+  n_rollout_timesteps: 2048
   clip_range: 0.2
   lda: 1
   # net_size: 1024
   policy: "cnn_atari"
+  adv_normalization: !!bool False
   # device: "cpu"
   gamma: 0.99
   learning_rate: !!float 3e-5

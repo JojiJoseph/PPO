@@ -10,6 +10,7 @@ from ppo import PPO
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
+parser.add_argument("-r", "--resume", action="store_true", help="Resume the process from previous check point")
 
 with open("./experiments.yaml") as f:
     experiments = yaml.safe_load(f)
@@ -23,7 +24,7 @@ hyperparams = experiments[experiment]
 
 print(hyperparams)
 
-algo = PPO(namespace=experiment, **hyperparams)
+algo = PPO(namespace=experiment, resume=args.resume, **hyperparams)
 
 algo.learn()
 

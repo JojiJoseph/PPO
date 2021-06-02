@@ -28,7 +28,7 @@ class PPO():
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = None, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
         action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99, wrapper=None, policy=None,
-        thresh_min_return=None, wrappers=[]):
+        thresh_min_return=None, wrappers=[], adv_normalization=True, resume=False):
 
         self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
@@ -58,6 +58,8 @@ class PPO():
         self.THRESH_MIN_RETURN = thresh_min_return
         self.WRAPPERS = wrappers
         self.POLICY = policy
+        self.ADV_NORMALIZATION = adv_normalization
+        self.RESUME = resume
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
             self.save_dir = "./results/" + namespace
@@ -142,6 +144,9 @@ class PPO():
         #     raise NotImplementedError
 
         actor_critic = self.create_network()
+
+        if self.RESUME:
+            actor_critic.load_state_dict(torch.load(self.save_dir + "/model.pt"))
         
         total_timesteps = 0
 
@@ -242,7 +247,8 @@ class PPO():
                     values_pred = values_pred.flatten()
 
                     loss_critic = self.COEFF_V * F.mse_loss(values_pred,values)
-                    advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
+                    if self.ADV_NORMALIZATION:
+                        advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
 
                     if type(env.action_space) == gym.spaces.Discrete:
