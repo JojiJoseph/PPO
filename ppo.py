@@ -2,11 +2,14 @@
 Class PPO Algorithm
 """
 
+from atari_wrapper import AtariRamWrapper
+from frame_stack_atari import AtariFrameStackWrapper
 from frame_stack_wrapper import FrameStackWrapper
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import gym
+from gym.wrappers import AtariPreprocessing
 import numpy as np
 
 from typing import Deque
@@ -15,7 +18,7 @@ import time
 import os
 
 from rollout_buffer import RolloutBuffer
-from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos
+from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
 
 DEBUG = False
 
@@ -79,6 +82,11 @@ class PPO():
         env = gym.make(self.ENV_NAME)
         if "frame_stack" in self.WRAPPERS:
             env = FrameStackWrapper(env)
+        if "atari_ram_wrapper" in self.WRAPPERS:
+            env = AtariRamWrapper(env)
+            # env = AtariPreprocessing(env)
+        if "atari_wrapper" in self.WRAPPERS:
+            env = AtariFrameStackWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
         return env
 
     def create_network(self):
@@ -89,6 +97,9 @@ class PPO():
                 n_actions = env.action_space.n
                 actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
                 self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
+                if self.POLICY == "cnn_atari":
+                    actor_critic = CnnAtari(n_actions).to(device)
+                    self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, 84*84*4)
         elif type(env.action_space) == gym.spaces.Box:
             action_dim = env.action_space.shape[0]
             actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
@@ -139,6 +150,7 @@ class PPO():
         episodes_passed = 0
         iteration = 0
         _state = env.reset() # Unconverted state
+        # print("State",_state.shape)
         episodic_reward = 0
         if DEBUG: # For debugging purpose
             min_state = [np.inf]*env.observation_space.shape[0]
@@ -155,6 +167,7 @@ class PPO():
                         max_state = np.maximum(max_state,_state)
                     _state = self.normalize_obs(_state) 
                     state = _state[None,:]
+                    # print("H", state)
                     state = torch.as_tensor(state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
@@ -219,6 +232,8 @@ class PPO():
                     states = torch.as_tensor(states).to(device)
                     if self.POLICY == "cnn_car_racing":
                         states = states.reshape(self.BATCH_SIZE, 4, 96, 96).float()
+                    if self.POLICY == "cnn_atari":
+                        states = states.reshape(self.BATCH_SIZE, 4, 84, 84).float()
                     values = torch.as_tensor(values).flatten().to(device)
                     old_log_prob = torch.as_tensor(old_log_prob).to(device)
                     advantages = torch.as_tensor(advantages).flatten().to(device)
@@ -262,7 +277,7 @@ class PPO():
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
-            if iteration % 10 == 1:
+            if iteration % 10 == 0:
                 t_evaluation_start = time.time()
                 evaluation_score = self.evaluate()
                 t_evaluation_end = time.time()

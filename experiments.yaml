@@ -248,8 +248,10 @@ biped_hard:
   learning_rate: !!float 3e-4
   n_timesteps: !!float 20e6
   n_epochs: 10
-  batch_size: 4096
-  n_rollout_timesteps: 4096
+  batch_size: 2048
+  thresh_min_return: -2
+  n_rollout_timesteps: 4098
+  n_eval_episodes: 20
   device: "cpu"
   clip_range: 0.2
   max_grad_norm: 0.5"
@@ -321,3 +323,69 @@ car_racing:
   policy: "cnn_car_racing"
   n_epochs: 20
   # device: "cpu"
+breakout_ram:
+  env_name: "Breakout-ram-v0"
+  learning_rate: !!float 3e-5
+  wrappers: ["atari_ram_wrapper"]
+  batch_size: 256
+  n_rollout_timesteps: 2048
+  clip_range: 0.2
+  lda: 1
+  net_size: 1024
+  device: "cpu"
+  gamma: 1
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 8
+  coeff_entropy: 0.01
+
+breakout:
+  env_name: "Breakout-v0"
+  learning_rate: !!float 3e-5
+  wrappers: ["atari_wrapper"]
+  batch_size: 512
+  n_rollout_timesteps: 512
+  clip_range: 0.2
+  lda: 1
+  # net_size: 1024
+  policy: "cnn_atari"
+  # device: "cpu"
+  gamma: 0.99
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  coeff_entropy: 0.01
+
+seaquest:
+  env_name: "Seaquest-v0"
+  learning_rate: !!float 3e-5
+  wrappers: ["atari_wrapper"]
+  batch_size: 1024
+  n_rollout_timesteps: 2048
+  clip_range: 0.2
+  lda: 1
+  # net_size: 1024
+  policy: "cnn_atari"
+  # device: "cpu"
+  gamma: 0.99
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  coeff_entropy: 0.01
+
+pong:
+  env_name: "Pong-v0"
+  learning_rate: !!float 3e-5
+  wrappers: ["atari_wrapper"]
+  batch_size: 512
+  n_rollout_timesteps: 512
+  clip_range: 0.2
+  lda: 1
+  # net_size: 1024
+  policy: "cnn_atari"
+  # device: "cpu"
+  gamma: 0.99
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  coeff_entropy: 0.01

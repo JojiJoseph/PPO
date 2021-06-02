@@ -1,3 +1,6 @@
+from gym.wrappers.atari_preprocessing import AtariPreprocessing
+from frame_stack_atari import AtariFrameStackWrapper
+from atari_wrapper import AtariRamWrapper
 from frame_stack_wrapper import FrameStackWrapper
 import torch
 import gym
@@ -7,7 +10,7 @@ import time
 import yaml
 import pybullet_envs
 
-from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos
+from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
@@ -24,6 +27,10 @@ env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
 if "wrappers" in hyperparams:
     if "frame_stack" in hyperparams["wrappers"]:
         env = FrameStackWrapper(env)
+    if "atari_ram_wrapper" in hyperparams["wrappers"]:
+        env = AtariRamWrapper(env)
+    if "atari_wrapper" in hyperparams["wrappers"]:
+        env = AtariFrameStackWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
 state_dim = env.observation_space.shape[0]
 size = 64
 if "net_size" in hyperparams:
@@ -34,7 +41,9 @@ else:
     action_scale = 1
 if type(env.action_space) == gym.spaces.Discrete:
     n_actions = env.action_space.n
-    actor_critic = ActorCritic(state_dim, n_actions)
+    actor_critic = ActorCritic(state_dim, n_actions, size=size)
+    if "policy" in hyperparams and hyperparams["policy"] == "cnn_atari":
+        actor_critic = CnnAtari(n_actions)
 elif type(env.action_space) == gym.spaces.Box:
     action_dim = env.action_space.shape[0]
     actor_critic = ActorCriticContinuous(state_dim, action_dim, action_scale=action_scale, size=size)

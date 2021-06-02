@@ -1,6 +1,8 @@
 
 import torch
 import torch.nn as nn
+from torch.nn.modules.activation import ReLU
+from torch.nn.modules.conv import Conv2d
 
 class Actor(nn.Module):
     def __init__(self, state_dim, n_actions, size=64) -> None:
@@ -85,3 +87,29 @@ class CnnActorCriticContinuos(nn.Module):
         actor_in = torch.relu(self.l4(actor_in))
         actor_mu = torch.tanh(self.actor_mu(actor_in))
         return (actor_mu, self.actor_log_std), critic_out
+
+class CnnAtari(nn.Module):
+    def __init__(self, n_actions=4):
+        super().__init__()
+        # Follows stable baselines model
+        self.cnn_layers = nn.Sequential(
+            nn.Conv2d(4, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(start_dim=1, end_dim=-1)
+        )
+        self.l1 = nn.Linear(3136, 512)
+        self.value_net = nn.Linear(512, 1)
+        self.action_net = nn.Linear(512, n_actions)
+    def forward(self, x):
+        # print(x.shape)
+        cnn_out = self.cnn_layers(x)
+        # print(cnn_out.shape)
+        common_in = torch.relu(self.l1(cnn_out))
+        action = self.action_net(common_in)
+        value = self.value_net(common_in)
+        return action, value
+
