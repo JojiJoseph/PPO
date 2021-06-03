@@ -447,3 +447,16 @@ hopper_welford:
   net_size: 256
   # coeff_entropy: 0.01
   obs_normalization: "welford"
+walker_welford:
+  env_name: "Walker2DBulletEnv-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 256
+  # coeff_entropy: 0.01
+  obs_normalization: "welford"
