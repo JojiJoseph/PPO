@@ -9,6 +9,7 @@ import argparse
 import time
 import yaml
 import pybullet_envs
+import numpy as np
 
 from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
 
@@ -60,6 +61,11 @@ if "obs_shift" in hyperparams:
     obs_shift = hyperparams["obs_shift"]
 if "obs_scale" in hyperparams:
     obs_scale = hyperparams["obs_scale"]
+if "obs_normalization" in hyperparams:
+    if obs_normalization == "welford":
+        welford_mean = actor_critic.welford_mean.data.detach().numpy()
+        welford_M2 = actor_critic.welford_M2.data.detach().numpy()
+        welford_count = actor_critic.welford_count.data.detach().numpy()
 
 def normalize_obs(observation):
     if obs_normalization == "simple":
@@ -67,6 +73,8 @@ def normalize_obs(observation):
             observation += obs_shift
         if obs_scale is not None:
             observation /= obs_scale
+    if obs_normalization == "welford":
+        observation = (observation - welford_mean)/np.sqrt(welford_M2/welford_count)
     return observation
 
 try:

@@ -49,6 +49,9 @@ class ActorCritic(nn.Module):
         super().__init__()
         self.actor = Actor(state_dim, n_actions, size)
         self.critic = Critic(state_dim, size)
+        self.welford_mean = nn.Parameter(torch.zeros(state_dim))
+        self.welford_M2 = nn.Parameter(torch.ones(state_dim))
+        self.welford_count = nn.Parameter(torch.tensor(1.))
     def forward(self, x):
         return self.actor(x), self.critic(x)
 
@@ -57,6 +60,9 @@ class ActorCriticContinuous(nn.Module):
         super().__init__()
         self.actor = ActorContinuous(state_dim, action_dim, action_scale,size)
         self.critic = Critic(state_dim,size)
+        self.welford_mean = nn.Parameter(torch.zeros(state_dim))
+        self.welford_M2 = nn.Parameter(torch.ones(state_dim))
+        self.welford_count = nn.Parameter(torch.tensor(1.))
     def forward(self, x):
         return self.actor(x), self.critic(x)
 
