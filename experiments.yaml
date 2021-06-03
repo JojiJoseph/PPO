@@ -314,14 +314,14 @@ car_racing:
   n_rollout_timesteps: 2048
   clip_range: 0.4
   max_grad_norm: 0.5
-  lda: 0.9
-  gamma: 0.98
+  lda: 0.96 #0.9
+  gamma: 0.99
   thresh_min_return: -10
   learning_rate: !!float 3e-5
   n_timesteps: !!float 20e6
   wrappers: ["frame_stack"]
   policy: "cnn_car_racing"
-  n_epochs: 20
+  n_epochs: 8 #20
   # device: "cpu"
 breakout_ram:
   env_name: "Breakout-ram-v0"
@@ -354,8 +354,9 @@ breakout:
   gamma: 0.99
   learning_rate: !!float 3e-5
   n_timesteps: !!float 20e6
-  n_epochs: 10
+  n_epochs: 5
   coeff_entropy: 0.01
+  n_eval_episodes: 10
 
 seaquest:
   env_name: "Seaquest-v0"
@@ -378,16 +379,30 @@ pong:
   env_name: "Pong-v0"
   learning_rate: !!float 3e-5
   wrappers: ["atari_wrapper"]
-  batch_size: 512
-  n_rollout_timesteps: 2048
+  batch_size: 256
+  n_rollout_timesteps: 512
   clip_range: 0.2
-  lda: 1
+  lda: 0.98
+  # thresh_min_return: -0.5
   # net_size: 1024
   policy: "cnn_atari"
   adv_normalization: !!bool False
   # device: "cpu"
   gamma: 0.99
-  learning_rate: !!float 3e-5
+  # learning_rate: !!float 3e-5
   n_timesteps: !!float 20e6
   n_epochs: 10
+  coeff_entropy: 0.01
+car_welford:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "welford"
+  lda: 0.98
+  gamma: 0.99
+  # obs_shift: [0.5,0]
+  # obs_scale: [0.5,0.04]
   coeff_entropy: 0.01

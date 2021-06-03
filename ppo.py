@@ -70,6 +70,12 @@ class PPO():
                 observation += self.OBS_SHIFT
             if self.OBS_SCALE is not None:
                 observation /= self.OBS_SCALE
+        elif self.OBS_NORMALIZATION == "welford":
+            std = np.sqrt(self.welford_M2 / self.welford_count)
+            observation = (observation - self.welford_mean)/ std/std#, -10, 10)
+            # observation = np.clip(observation, -10, 10)
+            # observation = (observation - self.welford_mean)/self.OBS_SCALE
+            # print(observation)
         return observation
 
     def normalize_rew(self, reward):
@@ -113,6 +119,17 @@ class PPO():
             raise NotImplementedError
         return actor_critic
 
+    def welford_update(self, observation):
+        self.welford_count += 1
+        # print(observation.shape, self.welford_mean.shape, self.welford_M2.shape)
+        delta = observation - self.welford_mean
+        self.welford_mean += delta/self.welford_count
+        delta2 = observation - self.welford_mean
+        self.welford_M2 += delta * delta2
+        # self.welford_M2 += delta*delta
+
+    
+
     def learn(self):
 
         high_score = -np.inf
@@ -126,6 +143,10 @@ class PPO():
         log_data = [["Episode", "End Step", "Episodic Reward"]]
 
         self.env = env
+
+        self.welford_mean = np.zeros((env.observation_space.shape[0],), np.float64)
+        self.welford_M2 = np.ones((env.observation_space.shape[0],), np.float64)
+        self.welford_count = 1
 
         episodic_returns = Deque(maxlen=100)
 
@@ -170,7 +191,14 @@ class PPO():
                     if DEBUG:
                         min_state = np.minimum(min_state, _state)
                         max_state = np.maximum(max_state,_state)
+                    if (self.OBS_NORMALIZATION == "welford"):
+                        # print("welford update")
+                        self.welford_update(_state)
+                        # print(self.welford_mean, self.welford_M2, self.welford_count)
+                    # print("\n",_state)
+                    # print(self.welford_mean)
                     _state = self.normalize_obs(_state) 
+                    # print(_state)
                     state = _state[None,:]
                     # print("H", state)
                     state = torch.as_tensor(state).float().to(device)
@@ -292,6 +320,10 @@ class PPO():
                 if evaluation_score >= high_score:
                     print("Saved!")
                     high_score = evaluation_score
+                    if self.OBS_NORMALIZATION == "welford":
+                        actor_critic.welford_mean.data = torch.tensor(self.welford_mean.copy())
+                        actor_critic.welford_M2.data = torch.tensor(self.welford_M2.copy())
+                        actor_critic.welford_count.data = torch.tensor(self.welford_count)
                     if self.NAMESPACE:
                         torch.save(actor_critic.state_dict(), self.save_dir + "/model.pt")
                     else:
