@@ -72,8 +72,8 @@ class PPO():
                 observation /= self.OBS_SCALE
         elif self.OBS_NORMALIZATION == "welford":
             std = np.sqrt(self.welford_M2 / self.welford_count)
-            observation = (observation - self.welford_mean)/ std/std#, -10, 10)
-            # observation = np.clip(observation, -10, 10)
+            observation = (observation - self.welford_mean)/ std#, -10, 10)
+            observation = np.clip(observation, -10, 10)
             # observation = (observation - self.welford_mean)/self.OBS_SCALE
             # print(observation)
         return observation
