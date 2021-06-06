@@ -2,7 +2,7 @@
 Class PPO Algorithm
 """
 
-from atari_wrapper import AtariRamWrapper
+from atari_wrapper import AtariRamWrapper, BreakoutBlindWrapper
 from frame_stack_atari import AtariFrameStackWrapper
 from frame_stack_wrapper import FrameStackWrapper
 import torch
@@ -84,6 +84,10 @@ class PPO():
                 reward += self.REW_SHIFT
             if self.REW_SCALE is not None:
                 reward /= self.REW_SCALE
+        elif self.REW_NORMALIZATION == "welford":
+            std = np.sqrt(self.welford_ret_M2 / self.welford_count)
+            reward = reward/ std#, -10, 10)
+            reward = np.clip(reward, -10, 10)
         return reward
 
     def create_env(self):
@@ -95,6 +99,8 @@ class PPO():
             # env = AtariPreprocessing(env)
         if "atari_wrapper" in self.WRAPPERS:
             env = AtariFrameStackWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
+        if "breakout_blind_wrapper" in self.WRAPPERS:
+            env = BreakoutBlindWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=True, scale_obs=True))
         return env
 
     def create_network(self):
@@ -127,6 +133,14 @@ class PPO():
         delta2 = observation - self.welford_mean
         self.welford_M2 += delta * delta2
         # self.welford_M2 += delta*delta
+    def welford_rew_update(self, ret):
+        if self.OBS_NORMALIZATION != "welford":
+            self.welford_count += 1
+        # print(observation.shape, self.welford_mean.shape, self.welford_M2.shape)
+        delta = ret - self.welford_ret_mean
+        self.welford_ret_mean += delta/self.welford_count
+        delta2 = ret - self.welford_ret_mean
+        self.welford_ret_M2 += delta * delta2
 
     
 
@@ -147,6 +161,8 @@ class PPO():
         self.welford_mean = np.zeros((env.observation_space.shape[0],), np.float64)
         self.welford_M2 = np.ones((env.observation_space.shape[0],), np.float64)
         self.welford_count = 1
+        self.welford_ret_mean = 0
+        self.welford_ret_M2 = 1
 
         episodic_returns = Deque(maxlen=100)
 
@@ -182,6 +198,7 @@ class PPO():
             min_state = [np.inf]*env.observation_space.shape[0]
             max_state = [-np.inf]*env.observation_space.shape[0]
             shift = 0
+        running_ret = 0
         while total_timesteps < self.N_TIMESTEPS:
             rollout_timesteps = 0
             self.buffer.clear()
@@ -222,6 +239,9 @@ class PPO():
 
                     episodic_reward += reward
 
+                    running_ret = running_ret*self.GAMMA + reward 
+                    if self.REW_NORMALIZATION == "welford":
+                        self.welford_rew_update(running_ret)
                     reward = self.normalize_rew(reward)
                     value = value.cpu().detach().numpy()
                     if self.THRESH_MIN_RETURN and episodic_reward < self.THRESH_MIN_RETURN:
@@ -236,6 +256,7 @@ class PPO():
                     env.close()
                     env = self.create_env()
                     env.reset()
+                    running_ret = 0
 
                 _state = next_state
 

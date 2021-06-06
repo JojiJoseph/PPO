@@ -1,6 +1,6 @@
 from gym.wrappers.atari_preprocessing import AtariPreprocessing
 from frame_stack_atari import AtariFrameStackWrapper
-from atari_wrapper import AtariRamWrapper
+from atari_wrapper import AtariRamWrapper, BreakoutBlindWrapper
 from frame_stack_wrapper import FrameStackWrapper
 import torch
 import gym
@@ -25,6 +25,10 @@ hyperparams = experiments[experiment]
 fps = 30
 
 env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
+
+print(env.action_space)
+print(env.observation_space)
+
 if "wrappers" in hyperparams:
     if "frame_stack" in hyperparams["wrappers"]:
         env = FrameStackWrapper(env)
@@ -32,6 +36,8 @@ if "wrappers" in hyperparams:
         env = AtariRamWrapper(env)
     if "atari_wrapper" in hyperparams["wrappers"]:
         env = AtariFrameStackWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
+    if "breakout_blind_wrapper" in hyperparams["wrappers"]:
+        env = BreakoutBlindWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
 state_dim = env.observation_space.shape[0]
 size = 64
 if "net_size" in hyperparams:

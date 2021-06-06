@@ -439,7 +439,7 @@ hopper_welford:
   learning_rate: !!float 3e-5
   n_timesteps: !!float 20e6
   n_epochs: 10
-  batch_size: 64
+  batch_size: 1024
   n_rollout_timesteps: 2048
   device: "cpu"
   clip_range: 0.2
@@ -460,3 +460,90 @@ walker_welford:
   net_size: 256
   # coeff_entropy: 0.01
   obs_normalization: "welford"
+inverted_pendulum_welford:
+  env_name: "InvertedPendulumSwingupBulletEnv-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 10e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 256
+  # coeff_entropy: 0.01
+  obs_normalization: "welford"
+car_d_rew:
+  env_name: "MountainCar-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 1e6
+  n_epochs: 4
+  batch_size: 64
+  n_rollout_timesteps: 512
+  device: "cpu"
+  clip_range: 0.2
+  # max_grad_norm: 0.5
+  # net_size: 256
+  # coeff_entropy: 0.01
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+biped_hard_welford:
+  env_name: "BipedalWalkerHardcore-v3"
+  n_eval_episodes: 20
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 128
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 512
+  lda: 0.96
+  gamma: 0.98
+  coeff_entropy: 0.01
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+  # obs_shift: !!seq [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0.5 ,0.5, 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+  # obs_scale: !!seq [1,1,1,1,1,1,1,1,0.5,1,1,1,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+biped_hard_ignore_fail:
+  env_name: "BipedalWalkerHardcore-v3"
+  n_eval_episodes: 20
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 128
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 512
+  lda: 0.96
+  gamma: 0.98
+  coeff_entropy: 0.01
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+breakout_2:
+  env_name: "Breakout-v0"
+  learning_rate: !!float 3e-4
+  wrappers: ["breakout_blind_wrapper"]
+  batch_size: 512
+  n_rollout_timesteps: 2048
+  clip_range: 0.2
+  adv_normalization: !!bool False
+  lda: 1
+  # net_size: 1024
+  policy: "cnn_atari"
+  # device: "cpu"
+  gamma: 0.999
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 5
+  coeff_entropy: 0.01
+  n_eval_episodes: 10
