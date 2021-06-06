@@ -15,16 +15,22 @@ from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, Cnn
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
+parser.add_argument("-E", "--eval", action="store_true", help="Evaluation run")
 
 with open("./experiments.yaml") as f:
     experiments = yaml.safe_load(f)
 
 args = parser.parse_args()
 experiment = args.exp
+eval = args.eval
+print(eval)
 hyperparams = experiments[experiment]
-fps = 30
+fps = 60
 
-env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
+if not eval:
+    env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
+else:
+    env = gym.make(hyperparams['env_name'])
 
 print(env.action_space)
 print(env.observation_space)
@@ -84,31 +90,42 @@ def normalize_obs(observation):
     return observation
 
 try:
-    env.render() # Should call render function before reset for pybullet environments
+    if not eval:
+        env.render() # Should call render function before reset for pybullet environments
 except:
     pass
 
-state = env.reset()
-done = False
-total_reward = 0
-while not done:
-    state = normalize_obs(state)
-    state = state[None,:]
-    state = torch.tensor(state).float()#.cuda()
+n_episodes = 1
+if eval:
+    n_episodes = 10
+returns = []
+for episode in range(n_episodes):
+    state = env.reset()
+    done = False
+    episodic_reward = 0
+    while not done:
+        state = normalize_obs(state)
+        state = state[None,:]
+        state = torch.tensor(state).float()#.cuda()
 
-    action_params, _ = actor_critic(state)
-    if type(env.action_space) == gym.spaces.Discrete:
-        action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
-    else:
-        mu, log_sigma = action_params
-        distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
-        action = distrib.sample((1,))
-    action = action[0].detach().cpu().numpy()
-    env.render()
-    time.sleep(1/fps)
-    next_state, reward, done, info = env.step(action)
-    state = next_state
-    total_reward += reward
-env.close()
+        action_params, _ = actor_critic(state)
+        if type(env.action_space) == gym.spaces.Discrete:
+            action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
+        else:
+            mu, log_sigma = action_params
+            distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
+            action = distrib.sample((1,))
+        action = action[0].detach().cpu().numpy()
+        if not eval:
+            env.render()
+            time.sleep(1/fps)
+        next_state, reward, done, info = env.step(action)
+        state = next_state
+        episodic_reward += reward
+    # env.close()
+    returns.append(episodic_reward)
 
-print("Total Reward:", total_reward)
+    print("Episode: {}, total_reward: {}".format(episode,episodic_reward))
+
+print("Mean:", np.mean(returns))
+print("Std:", np.std(returns))

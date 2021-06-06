@@ -280,6 +280,19 @@ acro:
   obs_normalization: "simple"
   obs_scale: [1,1,1,1,10,10]
 
+acro_welford:
+  env_name: "Acrobot-v1"
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 1e6
+  n_epochs: 20
+  batch_size: 256
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  coeff_entropy: 0.01
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+  # obs_scale: [1,1,1,1,10,10]
+
 pendulum:
   env_name: "Pendulum-v0"
   learning_rate: !!float 1e-5

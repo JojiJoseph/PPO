@@ -198,7 +198,11 @@ class PPO():
                 log_data = []
                 for row in reader:
                     log_data.append(row)
-                # writer.writerows(log_data)
+            if self.OBS_NORMALIZATION == "welford":
+                self.welford_mean = actor_critic.welford_mean.data.detach().numpy()
+                self.welford_M2 = actor_critic.welford_M2.data.detach().numpy()
+                self.welford_count = actor_critic.welford_count.data.detach().numpy()
+
         
 
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
