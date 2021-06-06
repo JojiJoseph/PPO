@@ -2,6 +2,7 @@
 Class PPO Algorithm
 """
 
+from numpy.lib.histograms import histogram
 from atari_wrapper import AtariRamWrapper, BreakoutBlindWrapper
 from frame_stack_atari import AtariFrameStackWrapper
 from frame_stack_wrapper import FrameStackWrapper
@@ -16,6 +17,7 @@ from typing import Deque
 import csv
 import time
 import os
+import yaml
 
 from rollout_buffer import RolloutBuffer
 from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
@@ -146,7 +148,7 @@ class PPO():
 
     def learn(self):
 
-        high_score = -np.inf
+        # high_score = -np.inf
         device = self.DEVICE
         print("Device: ", device)
         env = self.create_env()
@@ -182,15 +184,23 @@ class PPO():
 
         actor_critic = self.create_network()
 
+        training_info = {}
+        training_info["episodes"] = 0
+        training_info["timesteps"] = 0
+        training_info["iteration"] = 0
+        training_info["high_score"] = -np.inf
         if self.RESUME:
             actor_critic.load_state_dict(torch.load(self.save_dir + "/model.pt"))
         
-        total_timesteps = 0
 
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
 
-        episodes_passed = 0
-        iteration = 0
+        episodes_passed = training_info["episodes"]
+        iteration = training_info["iteration"]
+        total_timesteps = training_info["timesteps"]
+        high_score = training_info["high_score"]
+        
+
         _state = env.reset() # Unconverted state
         # print("State",_state.shape)
         episodic_reward = 0
@@ -349,6 +359,12 @@ class PPO():
                         torch.save(actor_critic.state_dict(), self.save_dir + "/model.pt")
                     else:
                         torch.save(actor_critic.state_dict(), "./" + self.ENV_NAME + ".pt")
+                training_info["iteration"] = iteration
+                training_info["timesteps"] = total_timesteps
+                training_info["episodes"] = episodes_passed
+                training_info["high_score"] = high_score
+                with open(self.save_dir + "/progress.yaml", "w") as f:
+                    yaml.safe_dump(training_info,f)
             with open(log_filename,'w',newline='') as file:
                 writer = csv.writer(file)
                 writer.writerows(log_data)

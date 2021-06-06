@@ -547,3 +547,18 @@ breakout_2:
   n_epochs: 5
   coeff_entropy: 0.01
   n_eval_episodes: 10
+humanoid_welford:
+  env_name: "HumanoidBulletEnv-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 64
+  n_rollout_timesteps: 2048
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 512
+  obs_normalization: "welford"
+test_save_and_reload:
+  learning_rate: 0.001
+  env_name: "CartPole-v0"
