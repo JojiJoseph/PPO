@@ -190,7 +190,15 @@ class PPO():
         training_info["iteration"] = 0
         training_info["high_score"] = -np.inf
         if self.RESUME:
-            actor_critic.load_state_dict(torch.load(self.save_dir + "/model.pt"))
+            actor_critic.load_state_dict(torch.load(self.save_dir + "/checkpoint.pt"))
+            with open(self.save_dir + "/progress.yaml","r") as f:
+                training_info = yaml.safe_load(f)
+            with open(log_filename,'r',newline='') as file:
+                reader = csv.reader(file)
+                log_data = []
+                for row in reader:
+                    log_data.append(row)
+                # writer.writerows(log_data)
         
 
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
@@ -363,15 +371,16 @@ class PPO():
                 training_info["timesteps"] = total_timesteps
                 training_info["episodes"] = episodes_passed
                 training_info["high_score"] = high_score
-                with open(self.save_dir + "/progress.yaml", "w") as f:
+                with open(self.save_dir + "/progress.yaml", "w",newline='') as f:
                     yaml.safe_dump(training_info,f)
-            with open(log_filename,'w',newline='') as file:
-                writer = csv.writer(file)
-                writer.writerows(log_data)
-            print("Training time = ", t_train_end - t_train_start)
-        with open(log_filename,'w',newline='') as file:
-                writer = csv.writer(file)
-                writer.writerows(log_data)
+                with open(log_filename,'w',newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(log_data)
+                torch.save(actor_critic.state_dict(), self.save_dir + "/checkpoint.pt")
+                print("Training time = ", t_train_end - t_train_start)
+                with open(log_filename,'w',newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(log_data)
     
     def evaluate(self):
         device = self.DEVICE
