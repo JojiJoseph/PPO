@@ -575,3 +575,61 @@ humanoid_welford:
 test_save_and_reload:
   learning_rate: 0.001
   env_name: "CartPole-v0"
+
+bh_high:
+  env_name: "BipedalWalkerHardcore-v3"
+  n_eval_episodes: 20
+  clip_range: 0.2
+  max_grad_norm: 0.5"
+  learning_rate: !!float 3e-4
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  batch_size: 4096
+  n_rollout_timesteps: 4096
+  max_grad_norm: 0.5
+  net_size: 1024
+  lda: 0.96
+  gamma: 0.98
+  device: "cpu"
+  coeff_entropy: 0.01
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+car_e11:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 1024
+  n_rollout_timesteps: 1024
+  n_eval_episodes: 20
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "simple"
+  obs_shift: [0.5,0]
+  obs_scale: [0.5,0.04]
+  coeff_entropy: 0.01
+car_e11_welford:
+  learning_rate: !!float 1e-3
+  n_epochs: 4
+  batch_size: 1024
+  n_rollout_timesteps: 1024
+  n_eval_episodes: 20
+  device: "cpu"
+  env_name: "MountainCar-v0"
+  obs_normalization: "welford"
+  # obs_shift: [0.5,0]
+  # obs_scale: [0.5,0.04]
+  coeff_entropy: 0.01
+
+car_racing:
+  env_name: "CarRacing-v0"
+  batch_size: 2048
+  n_rollout_timesteps: 2048
+  clip_range: 0.4
+  max_grad_norm: 0.5
+  lda: 0.96 #0.9
+  gamma: 0.99
+  # thresh_min_return: -10
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 20e6
+  wrappers: ["frame_stack"]
+  policy: "cnn_car_racing"
+  n_epochs: 10

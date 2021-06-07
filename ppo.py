@@ -362,7 +362,9 @@ class PPO():
                 print("Avg. Return (evaluation) = ", evaluation_score)
                 if evaluation_score >= high_score:
                     print("Saved!")
+                    print(type(high_score))
                     high_score = evaluation_score
+                    high_score = np.float32(high_score).item()
                     if self.OBS_NORMALIZATION == "welford":
                         actor_critic.welford_mean.data = torch.tensor(self.welford_mean.copy())
                         actor_critic.welford_M2.data = torch.tensor(self.welford_M2.copy())
@@ -376,6 +378,7 @@ class PPO():
                 training_info["episodes"] = episodes_passed
                 training_info["high_score"] = high_score
                 with open(self.save_dir + "/progress.yaml", "w",newline='') as f:
+                    print(training_info)
                     yaml.safe_dump(training_info,f)
                 with open(log_filename,'w',newline='') as file:
                     writer = csv.writer(file)

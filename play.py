@@ -10,6 +10,7 @@ import time
 import yaml
 import pybullet_envs
 import numpy as np
+import time
 
 from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
 
@@ -28,7 +29,7 @@ hyperparams = experiments[experiment]
 fps = 60
 
 if not eval:
-    env = Monitor(gym.make(hyperparams['env_name']), './video', force=True)
+    env = Monitor(gym.make(hyperparams['env_name']), './video/{}_{}'.format(experiment,time.time()), force=True)
 else:
     env = gym.make(hyperparams['env_name'])
 
@@ -97,7 +98,7 @@ except:
 
 n_episodes = 1
 if eval:
-    n_episodes = 10
+    n_episodes = 100
 returns = []
 for episode in range(n_episodes):
     state = env.reset()
@@ -116,6 +117,7 @@ for episode in range(n_episodes):
             distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
             action = distrib.sample((1,))
         action = action[0].detach().cpu().numpy()
+        # action = np.clip(action, -action_scale, action_scale)
         if not eval:
             env.render()
             time.sleep(1/fps)
@@ -127,5 +129,6 @@ for episode in range(n_episodes):
 
     print("Episode: {}, total_reward: {}".format(episode,episodic_reward))
 
+print("Best:", np.max(returns))
 print("Mean:", np.mean(returns))
 print("Std:", np.std(returns))
