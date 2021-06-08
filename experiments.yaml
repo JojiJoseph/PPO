@@ -675,4 +675,12 @@ lunar_multi:
   n_rollout_timesteps: 256
   batch_size: 1024
   device: "cpu"
+
+lunard_multi:
+  env_name: "LunarLander-v2"
+  learning_rate: !!float 1e-4
+  n_envs: 40
+  n_rollout_timesteps: 256
+  batch_size: 1024
+  device: "cpu"
   

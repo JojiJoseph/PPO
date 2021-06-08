@@ -62,6 +62,10 @@ class RolloutBufferMultiEnv():
         
         self.batch_size = batch_size
         n_rows = n_steps #// n_envs
+        self.n_batch_rows = batch_size // n_envs
+        self.n_envs = n_envs
+        self.action_dim = action_dim
+        self.state_dim = state_dim
 
         self.states = np.zeros((n_rows, n_envs, state_dim), dtype=np.float32)
         self.actions = np.zeros((n_rows, n_envs, action_dim))
@@ -109,11 +113,15 @@ class RolloutBufferMultiEnv():
         return self
         
     def __next__(self):
-        idx, batch_size = self.idx, self.batch_size
-        if self.idx < len(self.states):
-            s,a,adv,ret,l = self.states[idx],self.actions[idx],self.advantages[idx], self.returns[idx],self.log_probs[idx]
-            self.idx+=1
-
+        idx, batch_size , batch_rows= self.idx, self.batch_size, self.n_batch_rows
+        if self.idx + self.n_batch_rows<= len(self.states):
+            s,a,adv,ret,l = self.states[idx:idx+batch_rows],self.actions[idx:idx+batch_rows],self.advantages[idx:idx+batch_rows], self.returns[idx:idx+batch_rows],self.log_probs[idx:idx+batch_rows]
+            self.idx+=batch_rows
+            s = s.reshape((-1,self.state_dim))
+            a = a.reshape((-1,self.action_dim))
+            adv = adv.reshape((-1,))
+            ret = adv.reshape((-1,))
+            l = l.reshape((-1,))
             return s,a,adv, ret,l
         else:
             raise StopIteration
