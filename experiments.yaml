@@ -653,3 +653,9 @@ bh_high_2:
   coeff_entropy: 0.01
   obs_normalization: "welford"
   # rew_normalization: "welford"
+multi:
+  env_name: "CartPole-v0"
+  n_envs: 100
+  n_rollout_timesteps: 1000
+  batch_size: 1000
+  device: "cpu"
