@@ -61,7 +61,7 @@ class RolloutBufferMultiEnv():
     def __init__(self,n_steps=512, n_envs = 1, batch_size = 32, action_dim=2, state_dim=2):
         
         self.batch_size = batch_size
-        n_rows = n_steps // n_envs
+        n_rows = n_steps #// n_envs
 
         self.states = np.zeros((n_rows, n_envs, state_dim), dtype=np.float32)
         self.actions = np.zeros((n_rows, n_envs, action_dim))

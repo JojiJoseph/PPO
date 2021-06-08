@@ -659,3 +659,20 @@ multi:
   n_rollout_timesteps: 1000
   batch_size: 1000
   device: "cpu"
+pendulum_multi:
+  env_name: "Pendulum-v0"
+  learning_rate: !!float 1e-4
+  n_epochs: 20
+  n_envs: 10
+  n_rollout_timesteps: 256
+  batch_size: 1024
+  device: "cpu"
+
+lunar_multi:
+  env_name: "LunarLanderContinuous-v2"
+  learning_rate: !!float 1e-4
+  n_envs: 10
+  n_rollout_timesteps: 256
+  batch_size: 1024
+  device: "cpu"
+  

@@ -157,6 +157,8 @@ class PPO():
             envs = [self.create_env() for i in range(self.N_ENVS)]
             if type(env.action_space) == gym.spaces.Discrete:
                 self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
+            elif type(env.action_space) == gym.spaces.Box:
+                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
         if self.NAMESPACE:
             log_filename = self.save_dir + "/result.csv"
         else:
@@ -193,6 +195,8 @@ class PPO():
             envs = [self.create_env() for i in range(self.N_ENVS)]
             if type(env.action_space) == gym.spaces.Discrete:
                 self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
+            elif type(env.action_space) == gym.spaces.Box:
+                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
 
         training_info = {}
         training_info["episodes"] = 0
@@ -272,27 +276,41 @@ class PPO():
                             action = action.cpu().numpy()
 
                     else:
+                        # print("s",state.shape)
                         prob_params, value = actor_critic(state)
                         mu, log_sigma = prob_params
-                        distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
-                        action = distrib.sample((1,))
-                        log_prob = distrib.log_prob(action).sum(dim=1).item()
+                        if self.N_ENVS == 1:
+                            distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
+                            action = distrib.sample((1,))
+                        else:
+                            distrib = torch.distributions.Normal(mu, log_sigma.exp())
+                            action = distrib.sample((1,))[0]
+                        # print(action.shape)
+                        if self.N_ENVS == 1:
+                            log_prob = distrib.log_prob(action).sum(dim=1).item()
+                            action = action[0].cpu().numpy()
+                            # print(action)
+                        else:
+                            log_prob = distrib.log_prob(action).sum(dim=1)
+                            action = action.cpu().numpy()
+                            # print(action.shape)
 
-                        action = action[0].cpu().numpy()
                     if self.N_ENVS == 1:
                         next_state, reward, done, info = env.step(action)
                     else:
-                        # print(action)
+                        # print(action.shape)
                         batch_result = [env.step(a) for env, a in zip(envs,action)]
+                        # print(batch_result)
                         next_state, reward, done, info = [], [], [], []
                         for n, r, d, i in batch_result:
                             next_state.append(n)
                             reward.append(r)
                             done.append(d)
                             info.append(i)
+                            # print(i)
                     reward = np.array(reward)
                     next_state = np.array(next_state)
-                    # print(next_state)
+                    # print(next_state.shape)
                     done = np.array(done)
                     info = np.array(info)
                     episodic_reward += reward
@@ -334,7 +352,9 @@ class PPO():
 
                 _state = next_state
 
-                rollout_timesteps += self.N_ENVS
+                # print("_", next_state.shape)
+
+                rollout_timesteps += 1 #self.N_ENVS
                 total_timesteps += self.N_ENVS
             if DEBUG:
                 print(min_state)
