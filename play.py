@@ -98,7 +98,7 @@ except:
 
 n_episodes = 1
 if eval:
-    n_episodes = 100
+    n_episodes = 50
 returns = []
 for episode in range(n_episodes):
     state = env.reset()
