@@ -780,3 +780,38 @@ ch_multi:
   policy: "mlp2"
   obs_normalization: "welford"
   rew_normalization: "welford"
+
+ant8:
+  env_name: "AntBulletEnv-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 20e6
+  n_epochs: 10
+  n_envs: 2
+  batch_size: 64
+  n_rollout_timesteps: 1024
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 256
+  # coeff_entropy: 0.01
+  obs_normalization: "welford"
+
+chm:
+  env_name: "HalfCheetahBulletEnv-v0"
+  # env_wrapper: sb3_contrib.common.wrappers.TimeFeatureWrapper
+  obs_normalization: "welford"
+  n_envs: 16
+  n_timesteps: !!float 2e6
+  policy: 'mlp2'
+  batch_size: 128
+  n_rollout_timesteps: 512
+  gamma: 0.99
+  lda: 0.9
+  n_epochs: 20
+  coeff_entropy: 0.0
+  # sde_sample_freq: 4
+  max_grad_norm: 0.5
+  # vf_coef: 0.5
+  learning_rate: !!float 3e-5
+  # use_sde: True
+  clip_range: 0.4

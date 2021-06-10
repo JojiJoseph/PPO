@@ -161,7 +161,7 @@ class PPO():
             if self.POLICY == "cnn_atari":
                 buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, 84*84*4)
         elif type(env.action_space) == gym.spaces.Box:
-            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+            buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
             if self.POLICY == "cnn_car_racing":
                 buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, env.action_space.shape[0], 96*96*4)
         return buffer
@@ -269,6 +269,8 @@ class PPO():
                         log_prob = distrib.log_prob(action)
                         action = action.cpu().numpy()
 
+                        action_clipped = action # To avoid seperate branch while applying to an environment
+
                     else:
                         prob_params, value = actor_critic(state)
                         mu, log_sigma = prob_params
@@ -278,9 +280,9 @@ class PPO():
 
                         log_prob = distrib.log_prob(action).sum(dim=1)
                         action = action.cpu().numpy()
-                        action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
+                        action_clipped = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
 
-                    batch_result = [env.step(a) for env, a in zip(envs,action)]
+                    batch_result = [env.step(a) for env, a in zip(envs,action_clipped)]
 
                     next_state, reward, done, info = [], [], [], []
                     for n, r, d, i in batch_result:
