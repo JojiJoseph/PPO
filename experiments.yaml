@@ -791,6 +791,7 @@ ant8:
   n_rollout_timesteps: 1024
   device: "cpu"
   clip_range: 0.2
+  net_size: 256
   max_grad_norm: 0.5
   net_size: 256
   # coeff_entropy: 0.01
@@ -814,4 +815,5 @@ chm:
   # vf_coef: 0.5
   learning_rate: !!float 3e-5
   # use_sde: True
-  clip_range: 0.4
+  clip_range: 0.2
+  net_size: 256

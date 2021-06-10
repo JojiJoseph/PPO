@@ -414,6 +414,7 @@ class PPO():
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
                 action = action.detach().cpu().numpy()
+                action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward

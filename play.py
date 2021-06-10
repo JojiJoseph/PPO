@@ -95,7 +95,7 @@ def normalize_obs(observation):
             observation /= obs_scale
     if obs_normalization == "welford":
         # print(welford_mean.shape)
-        observation = (observation - welford_mean)/np.sqrt(welford_M2/welford_count)
+        observation = (observation - welford_mean)/np.sqrt(welford_M2/welford_count + 1e-8)
         # print(observation.shape)
         # np.clip(observation, -10, 10)
     return observation
@@ -129,7 +129,7 @@ for episode in range(n_episodes):
             distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
             action = distrib.sample((1,))
         action = action[0].detach().cpu().numpy()
-        # action = np.clip(action, -action_scale, action_scale)
+        action = np.clip(action, -action_scale, action_scale)
         if not eval:
             env.render()
             time.sleep(1/fps)
