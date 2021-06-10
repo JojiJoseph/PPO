@@ -98,7 +98,6 @@ class PPO():
             env = FrameStackWrapper(env)
         if "atari_ram_wrapper" in self.WRAPPERS:
             env = AtariRamWrapper(env)
-            # env = AtariPreprocessing(env)
         if "atari_wrapper" in self.WRAPPERS:
             env = AtariFrameStackWrapper(AtariPreprocessing(env, frame_skip=1, grayscale_obs=True, terminal_on_life_loss=False, scale_obs=True))
         if "breakout_blind_wrapper" in self.WRAPPERS:
@@ -112,23 +111,18 @@ class PPO():
         if type(env.action_space) == gym.spaces.Discrete:
                 n_actions = env.action_space.n
                 actor_critic = ActorCritic(state_dim, n_actions, self.NET_SIZE).to(device)
-                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
                 if self.POLICY == "cnn_atari":
                     actor_critic = CnnAtari(n_actions).to(device)
-                    self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, 84*84*4)
                 if self.POLICY == "mlp2":
                     actor_critic = ActorCritic2(state_dim, n_actions, self.NET_SIZE).to(device)
-                    self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
+                    
         elif type(env.action_space) == gym.spaces.Box:
             action_dim = env.action_space.shape[0]
             actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
-            self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
             if self.POLICY == "cnn_car_racing":
                 actor_critic = CnnActorCriticContinuos(4, action_dim).to(device)
-                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, 96*96*4)
             if self.POLICY == "mlp2":
                 actor_critic = ActorCriticContinuous2(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
-                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
         return actor_critic
@@ -159,6 +153,18 @@ class PPO():
 
 
     
+    def create_buffer(self):
+        env = self.env
+        buffer = None
+        if type(env.action_space) == gym.spaces.Discrete:
+            buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
+            if self.POLICY == "cnn_atari":
+                buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, 84*84*4)
+        elif type(env.action_space) == gym.spaces.Box:
+            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+            if self.POLICY == "cnn_car_racing":
+                buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, env.action_space.shape[0], 96*96*4)
+        return buffer
 
     def learn(self):
 
@@ -168,13 +174,10 @@ class PPO():
         
         env = self.create_env()
         
-        # if self.N_ENVS > 1:
+        # Create vector of environments
         envs = [self.create_env() for i in range(self.N_ENVS)]
         self.envs = envs
-        if type(env.action_space) == gym.spaces.Discrete:
-            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
-        elif type(env.action_space) == gym.spaces.Box:
-            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+
         if self.NAMESPACE:
             log_filename = self.save_dir + "/result.csv"
         else:
@@ -201,13 +204,8 @@ class PPO():
 
         actor_critic = self.create_network()
 
-        # if self.N_ENVS > 1:
-            # Create a vector of environments
-        envs = [self.create_env() for i in range(self.N_ENVS)]
-        if type(env.action_space) == gym.spaces.Discrete:
-            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
-        elif type(env.action_space) == gym.spaces.Box:
-            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+        # Create buffer
+        self.buffer = self.create_buffer()
 
         # The object that helps to load checkpoints
         training_info = {}
@@ -238,9 +236,7 @@ class PPO():
         iteration = training_info["iteration"]
         total_timesteps = training_info["timesteps"]
         high_score = training_info["high_score"]
-        
-        _state = env.reset() # Unconverted state
-        
+                
         _state = np.array([env.reset() for env in envs])
         
         episodic_reward = 0
