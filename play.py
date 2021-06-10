@@ -12,7 +12,7 @@ import pybullet_envs
 import numpy as np
 import time
 
-from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
+from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari, ActorCritic2, ActorCriticContinuous2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")
@@ -58,9 +58,13 @@ if type(env.action_space) == gym.spaces.Discrete:
     actor_critic = ActorCritic(state_dim, n_actions, size=size)
     if "policy" in hyperparams and hyperparams["policy"] == "cnn_atari":
         actor_critic = CnnAtari(n_actions)
+    if "policy" in hyperparams and hyperparams["policy"] == "mlp2":
+        actor_critic = ActorCritic2(state_dim, n_actions, size=size)
 elif type(env.action_space) == gym.spaces.Box:
     action_dim = env.action_space.shape[0]
     actor_critic = ActorCriticContinuous(state_dim, action_dim, action_scale=action_scale, size=size)
+    if "policy" in hyperparams and hyperparams["policy"] == "mlp2":
+        actor_critic = ActorCriticContinuous2(state_dim, action_dim, action_scale=action_scale, size=size)
 if "policy" in hyperparams and hyperparams["policy"] == "cnn_car_racing":
     actor_critic = CnnActorCriticContinuos(4, action_dim)
 actor_critic.load_state_dict(torch.load("./results/" + experiment + "/model.pt"))
