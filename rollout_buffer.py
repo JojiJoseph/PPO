@@ -100,7 +100,7 @@ class RolloutBufferMultiEnv():
             #     delta = self.rewards[i] - self.values[i]
             # else:
             delta = self.rewards[i] + gamma*last_value*self.dones[i] - self.values[i]
-            adv = delta + lda*gamma*prev_adv
+            adv = delta + lda*gamma*self.dones[i]*prev_adv
             prev_adv = adv
             last_value = self.values[i]
             self.advantages[i] = adv

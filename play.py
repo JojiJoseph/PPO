@@ -79,6 +79,9 @@ if "obs_normalization" in hyperparams:
         welford_mean = actor_critic.welford_mean.data.detach().numpy()
         welford_M2 = actor_critic.welford_M2.data.detach().numpy()
         welford_count = actor_critic.welford_count.data.detach().numpy()
+        print(welford_mean)
+        print(welford_M2)
+        print(welford_count)
 
 def normalize_obs(observation):
     if obs_normalization == "simple":
@@ -87,7 +90,10 @@ def normalize_obs(observation):
         if obs_scale is not None:
             observation /= obs_scale
     if obs_normalization == "welford":
+        # print(welford_mean.shape)
         observation = (observation - welford_mean)/np.sqrt(welford_M2/welford_count)
+        # print(observation.shape)
+        # np.clip(observation, -10, 10)
     return observation
 
 try:
@@ -105,8 +111,10 @@ for episode in range(n_episodes):
     done = False
     episodic_reward = 0
     while not done:
-        state = normalize_obs(state)
+        # print(state.shape, welford_mean.shape, welford_M2.shape)
+        # print()
         state = state[None,:]
+        state = normalize_obs(state)
         state = torch.tensor(state).float()#.cuda()
 
         action_params, _ = actor_critic(state)

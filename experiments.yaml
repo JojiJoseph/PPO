@@ -656,7 +656,7 @@ bh_high_2:
 multi:
   env_name: "CartPole-v0"
   n_envs: 100
-  n_rollout_timesteps: 1000
+  n_rollout_timesteps: 10
   batch_size: 1000
   device: "cpu"
 pendulum_multi:
@@ -683,4 +683,68 @@ lunard_multi:
   n_rollout_timesteps: 256
   batch_size: 1024
   device: "cpu"
-  
+card_multi:
+  env_name: "MountainCar-v0"
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+  device: "cpu"
+  n_envs: 16
+  n_timesteps: !!float 1e6
+  # policy: 'MlpPolicy'
+  batch_size: 64
+  n_rollout_timesteps: 16
+  lda: 0.98
+  gamma: 0.99
+  n_epochs: 4
+  coeff_entropy: 0.0
+  learning_rate: 0.0003
+
+minitaur:
+  env_name: "MinitaurBulletEnv-v0"
+  obs_normalization: "welford"
+  n_envs: 8
+  n_timesteps: !!float 2e6
+  # policy: 'MlpPolicy'
+  n_rollout_timesteps: 2048
+  batch_size: 64
+  lda: 0.95
+  gamma: 0.99
+  n_epochs: 10
+  coeff_entropy: 0.0
+  learning_rate: !!float 2.5e-4
+  clip_range: 0.2
+hu:
+  env_name: "HumanoidBulletEnv-v0"
+  obs_normalization: "welford"
+  # rew_normalization: "welford"
+  n_envs: 8
+  n_timesteps: !!float 1e7
+  # policy: 'MlpPolicy'
+  device: "cpu"
+  n_rollout_timesteps: 2048
+  batch_size: 64
+  lda: 0.95
+  gamma: 0.99
+  # net_size: 256
+  n_epochs: 10
+  coeff_entropy: 0.0
+  learning_rate: !!float  2.5e-4
+  clip_range: 0.2
+ant_multi:
+  n_envs: 16
+  n_timesteps: !!float 2e6
+  # policy: 'MlpPolicy'
+  batch_size: 128
+  n_rollout_timesteps: 512
+  gamma: 0.99
+  lda: 0.9
+  n_epochs: 20
+  # ent_coef: 0.0
+  # sde_sample_freq: 4
+  max_grad_norm: 0.5
+  # vf_coef: 0.5
+  device: "cpu"
+  learning_rate: !!float 3e-5
+  net_size: 256
+  obs_normalization: "welford"
+  rew_normalization: "welford"
