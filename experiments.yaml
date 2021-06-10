@@ -683,11 +683,26 @@ lunard_multi:
   n_rollout_timesteps: 256
   batch_size: 1024
   device: "cpu"
+# card_multi:
+#   env_name: "MountainCar-v0"
+#   obs_normalization: "welford"
+#   rew_normalization: "welford"
+#   device: "cpu"
+#   n_envs: 16
+#   n_timesteps: !!float 1e6
+#   # policy: 'MlpPolicy'
+#   batch_size: 64
+#   n_rollout_timesteps: 16
+#   lda: 0.98
+#   gamma: 0.99
+#   n_epochs: 4
+#   coeff_entropy: 0.0
+#   learning_rate: 0.0003
 card_multi:
   env_name: "MountainCar-v0"
   obs_normalization: "welford"
   rew_normalization: "welford"
-  device: "cpu"
+  # device: "cpu"
   n_envs: 16
   n_timesteps: !!float 1e6
   # policy: 'MlpPolicy'
@@ -696,7 +711,7 @@ card_multi:
   lda: 0.98
   gamma: 0.99
   n_epochs: 4
-  coeff_entropy: 0.0
+  # coeff_entropy: 0.01
   learning_rate: 0.0003
 
 minitaur:
@@ -716,7 +731,7 @@ minitaur:
 hu:
   env_name: "HumanoidBulletEnv-v0"
   obs_normalization: "welford"
-  # rew_normalization: "welford"
+  rew_normalization: "welford"
   n_envs: 8
   n_timesteps: !!float 1e7
   # policy: 'MlpPolicy'

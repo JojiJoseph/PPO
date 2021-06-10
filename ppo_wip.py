@@ -21,7 +21,7 @@ DEBUG = False
 
 class PPO():
     def __init__(self, learning_rate=3e-4, env_name="CartPole-v1",
-        n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=1024, coeff_v=0.5,
+        n_timesteps=int(1e6), batch_size=64, n_epochs=10, n_rollout_timesteps=2048, coeff_v=0.5,
         clip_range=0.2,n_eval_episodes=5, device=None, max_grad_norm = 0.5, coeff_entropy=0.0,
         obs_normalization=None, obs_shift=None, obs_scale=None,rew_normalization=None, rew_shift=None, rew_scale=None,
         action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99, wrapper=None, policy=None,
@@ -74,7 +74,8 @@ class PPO():
             # print(observation[0][0])
             # print(int(self.welford_mean[0]))
             # exit()
-            std = np.sqrt(self.welford_M2 / self.welford_count + 1e-8)
+            # std = np.sqrt(self.welford_M2 / self.welford_count + 1e-8)
+            std = np.sqrt(self.welford_var)
             observation = (observation - self.welford_mean)/ std#, -10, 10)
             observation = np.clip(observation, -10, 10)
             # observation = (observation - self.welford_mean)/self.OBS_SCALE
@@ -88,7 +89,8 @@ class PPO():
             if self.REW_SCALE is not None:
                 reward /= self.REW_SCALE
         elif self.REW_NORMALIZATION == "welford":
-            std = np.sqrt(self.welford_ret_M2 / self.welford_count + 1e-8)
+            # std = np.sqrt(self.welford_ret_M2 / self.welford_count + 1e-8)
+            std = np.sqrt(self.welford_ret_var + 1e-8)
             reward = reward/ std#, -10, 10)
             reward = np.clip(reward, -10, 10)
         return reward
@@ -146,6 +148,10 @@ class PPO():
             delta = b_mean - self.welford_mean
             self.welford_mean += delta*self.N_ENVS/self.welford_count
             self.welford_M2 += b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+
+            # Test lines
+            M2 = self.welford_var * (self.welford_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+            self.welford_var = M2 / self.welford_count
             # print("After updatae", self.welford_mean)
             
     def welford_rew_update(self, ret):
@@ -163,7 +169,11 @@ class PPO():
             # self.welford_count += self.N_ENVS
             delta = b_mean - self.welford_ret_mean
             self.welford_ret_mean += delta*self.N_ENVS/self.welford_count
-            self.welford_ret_M2 += b_M2 + delta ** 2 * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+            self.welford_ret_M2 += b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+
+            # Test lines
+            M2 = self.welford_ret_var * (self.welford_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+            self.welford_ret_var = M2 / self.welford_count
 
 
     
@@ -193,9 +203,11 @@ class PPO():
 
         self.welford_mean = np.zeros((env.observation_space.shape[0],), np.float64)
         self.welford_M2 = np.ones((env.observation_space.shape[0],), np.float64)
-        self.welford_count = np.array(1, dtype=np.float64)
-        self.welford_ret_mean = np.zeros((self.N_ENVS), np.float64)
-        self.welford_ret_M2 = np.ones((self.N_ENVS,), np.float64)
+        self.welford_var = np.ones((env.observation_space.shape[0],), np.float64)
+        self.welford_count = np.array(1e-4, dtype=np.float64)
+        self.welford_ret_mean = np.array(0, np.float64)
+        self.welford_ret_M2 = np.array(1, np.float64)
+        self.welford_ret_var = np.array(1, np.float64)
 
         episodic_returns = Deque(maxlen=100)
 
@@ -301,14 +313,14 @@ class PPO():
                             action = distrib.sample((1,))[0]
                         # print(action.shape)
                         if self.N_ENVS == 1:
-                            action = np.torch(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                             log_prob = distrib.log_prob(action).sum(dim=1).item()
                             action = action[0].cpu().numpy()
+                            action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                             # print(action)
                         else:
-                            action = torch.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                             log_prob = distrib.log_prob(action).sum(dim=1)
                             action = action.cpu().numpy()
+                            action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                             # print(action.shape)
                         # action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
 
@@ -386,8 +398,8 @@ class PPO():
             else:
                 state = _state
             with torch.no_grad():
+                state = self.normalize_obs(state)#.float()
                 state = torch.as_tensor(state).float().to(device)
-                state = self.normalize_obs(state).float()
                 _, last_value = actor_critic(state)
                 if self.N_ENVS == 1:
                     last_value = last_value[0].cpu().numpy().item()
@@ -455,6 +467,9 @@ class PPO():
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
             print(self.welford_mean)
+            print(self.welford_ret_mean)
+            print(self.welford_ret_M2)
+            print(self.welford_count)
             print("Total timesteps = ", total_timesteps)
             # print(type(self.welford_mean[0]))
             if iteration % 10 == 0:
