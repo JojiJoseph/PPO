@@ -365,7 +365,7 @@ class PPO():
                             episodic_reward[i] = 0
                             # envs[i].close()
                             # envs[i] = self.create_env()
-                            envs[i].reset()
+                            # envs[i].reset()
                             running_ret[i] = 0
 
 
