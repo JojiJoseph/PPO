@@ -132,44 +132,35 @@ class PPO():
         return actor_critic
 
     def welford_update(self, observation):
-        if self.N_ENVS == 1:
-            self.welford_count += 1
-            delta = observation - self.welford_mean
-            self.welford_mean += delta/self.welford_count
-            delta2 = observation - self.welford_mean
-            self.welford_M2 += delta * delta2
-        else:
-            b_mean = np.mean(observation, axis=0)
-            b_M2 = np.var(observation, axis=0)*self.N_ENVS
-            self.welford_count += self.N_ENVS
-            delta = b_mean - self.welford_mean
-            self.welford_mean += delta*self.N_ENVS/self.welford_count
-            self.welford_M2 += b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+        # if self.N_ENVS == 1:
+        #     self.welford_count += 1
+        #     delta = observation - self.welford_mean
+        #     self.welford_mean += delta/self.welford_count
+        #     delta2 = observation - self.welford_mean
+        #     self.welford_M2 += delta * delta2
+        # else:
+        b_mean = np.mean(observation, axis=0)
+        b_M2 = np.var(observation, axis=0)*self.N_ENVS
+        self.welford_count += self.N_ENVS
+        delta = b_mean - self.welford_mean
+        self.welford_mean += delta*self.N_ENVS/self.welford_count
+        self.welford_M2 += b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
 
-            # Test lines
-            M2 = self.welford_var * (self.welford_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
-            self.welford_var = M2 / self.welford_count
-            # print("After updatae", self.welford_mean)
+        # Test lines
+        M2 = self.welford_var * (self.welford_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+        self.welford_var = M2 / self.welford_count
             
     def welford_rew_update(self, ret):
-        # if self.OBS_NORMALIZATION != "welford":
         self.welford_ret_count += self.N_ENVS
-        # print(observation.shape, self.welford_mean.shape, self.welford_M2.shape)
-        if self.N_ENVS == 1:
-            delta = ret - self.welford_ret_mean
-            self.welford_ret_mean += delta/self.welford_ret_count
-            delta2 = ret - self.welford_ret_mean
-            self.welford_ret_M2 += delta * delta2
-        else:
-            b_mean = np.mean(ret)
-            b_M2 = np.var(ret)*self.N_ENVS
-            delta = b_mean - self.welford_ret_mean
-            self.welford_ret_mean += delta*self.N_ENVS/self.welford_ret_count
-            self.welford_ret_M2 += b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
+        b_mean = np.mean(ret)
+        b_M2 = np.var(ret)*self.N_ENVS
+        delta = b_mean - self.welford_ret_mean
+        self.welford_ret_mean += delta*self.N_ENVS/self.welford_ret_count
+        self.welford_ret_M2 += b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
 
-            # Test lines
-            M2 = self.welford_ret_var * (self.welford_ret_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
-            self.welford_ret_var = M2 / self.welford_ret_count
+        # Test lines
+        M2 = self.welford_ret_var * (self.welford_ret_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
+        self.welford_ret_var = M2 / self.welford_ret_count
 
 
     
@@ -182,13 +173,13 @@ class PPO():
         
         env = self.create_env()
         
-        if self.N_ENVS > 1:
-            envs = [self.create_env() for i in range(self.N_ENVS)]
-            self.envs = envs
-            if type(env.action_space) == gym.spaces.Discrete:
-                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
-            elif type(env.action_space) == gym.spaces.Box:
-                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+        # if self.N_ENVS > 1:
+        envs = [self.create_env() for i in range(self.N_ENVS)]
+        self.envs = envs
+        if type(env.action_space) == gym.spaces.Discrete:
+            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
+        elif type(env.action_space) == gym.spaces.Box:
+            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
         if self.NAMESPACE:
             log_filename = self.save_dir + "/result.csv"
         else:
@@ -215,13 +206,13 @@ class PPO():
 
         actor_critic = self.create_network()
 
-        if self.N_ENVS > 1:
+        # if self.N_ENVS > 1:
             # Create a vector of environments
-            envs = [self.create_env() for i in range(self.N_ENVS)]
-            if type(env.action_space) == gym.spaces.Discrete:
-                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
-            elif type(env.action_space) == gym.spaces.Box:
-                self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
+        envs = [self.create_env() for i in range(self.N_ENVS)]
+        if type(env.action_space) == gym.spaces.Discrete:
+            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
+        elif type(env.action_space) == gym.spaces.Box:
+            self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
 
         # The object that helps to load checkpoints
         training_info = {}
@@ -255,8 +246,8 @@ class PPO():
         
         _state = env.reset() # Unconverted state
         
-        if self.N_ENVS > 1:
-            _state = np.array([env.reset() for env in envs])
+        # if self.N_ENVS > 1:
+        _state = np.array([env.reset() for env in envs])
         
         episodic_reward = 0
                 
@@ -277,62 +268,62 @@ class PPO():
 
                     _state = self.normalize_obs(_state) 
 
-                    if self.N_ENVS == 1:
-                        state = _state[None,:]
-                    else:
-                        state = _state
+                    # if self.N_ENVS == 1:
+                    #     state = _state[None,:]
+                    # else:
+                    state = _state
                     state = torch.as_tensor(state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
                         prob_params, value = actor_critic(state)
-                        if self.N_ENVS == 1:
-                            distrib = torch.distributions.Categorical(logits=prob_params[0])
-                        else:
-                            distrib = torch.distributions.Categorical(logits=prob_params)
+                        # if self.N_ENVS == 1:
+                        #     distrib = torch.distributions.Categorical(logits=prob_params[0])
+                        # else:
+                        distrib = torch.distributions.Categorical(logits=prob_params)
                         action = distrib.sample((1,)).flatten()
-                        if self.N_ENVS == 1:
-                            log_prob = distrib.log_prob(action).item()
-                            action = action[0].cpu().numpy()
-                        else:
-                            log_prob = distrib.log_prob(action)
-                            action = action.cpu().numpy()
+                        # if self.N_ENVS == 1:
+                        #     log_prob = distrib.log_prob(action).item()
+                        #     action = action[0].cpu().numpy()
+                        # else:
+                        log_prob = distrib.log_prob(action)
+                        action = action.cpu().numpy()
 
                     else:
                         # print("s",state.shape)
                         prob_params, value = actor_critic(state)
                         mu, log_sigma = prob_params
-                        if self.N_ENVS == 1:
-                            distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
-                            action = distrib.sample((1,))
-                        else:
-                            distrib = torch.distributions.Normal(mu, log_sigma.exp())
-                            action = distrib.sample((1,))[0]
+                        # if self.N_ENVS == 1:
+                        #     distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
+                        #     action = distrib.sample((1,))
+                        # else:
+                        distrib = torch.distributions.Normal(mu, log_sigma.exp())
+                        action = distrib.sample((1,))[0]
                         # print(action.shape)
-                        if self.N_ENVS == 1:
-                            log_prob = distrib.log_prob(action).sum(dim=1).item()
-                            action = action[0].cpu().numpy()
-                            action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
-                            # print(action)
-                        else:
-                            log_prob = distrib.log_prob(action).sum(dim=1)
-                            action = action.cpu().numpy()
-                            action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
-                            # print(action.shape)
+                        # if self.N_ENVS == 1:
+                        #     log_prob = distrib.log_prob(action).sum(dim=1).item()
+                        #     action = action[0].cpu().numpy()
+                        #     action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
+                        #     # print(action)
+                        # else:
+                        log_prob = distrib.log_prob(action).sum(dim=1)
+                        action = action.cpu().numpy()
+                        action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
+                        # print(action.shape)
                         # action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
 
-                    if self.N_ENVS == 1:
-                        next_state, reward, done, info = env.step(action)
-                    else:
-                        # print(action.shape)
-                        batch_result = [env.step(a) for env, a in zip(envs,action)]
-                        # print(batch_result)
-                        next_state, reward, done, info = [], [], [], []
-                        for n, r, d, i in batch_result:
-                            next_state.append(n)
-                            reward.append(r)
-                            done.append(d)
-                            info.append(i)
-                            # print(i)
+                    # if self.N_ENVS == 1:
+                    #     next_state, reward, done, info = env.step(action)
+                    # else:
+                    # print(action.shape)
+                    batch_result = [env.step(a) for env, a in zip(envs,action)]
+                    # print(batch_result)
+                    next_state, reward, done, info = [], [], [], []
+                    for n, r, d, i in batch_result:
+                        next_state.append(n)
+                        reward.append(r)
+                        done.append(d)
+                        info.append(i)
+                        # print(i)
                     reward = np.array(reward)
                     next_state = np.array(next_state)
                     # print(next_state.shape)
@@ -348,21 +339,22 @@ class PPO():
                     if self.THRESH_MIN_RETURN and episodic_reward < self.THRESH_MIN_RETURN:
                         done = True
                     # print(type(self.buffer))
-                    if self.N_ENVS == 1:
-                        self.buffer.add(_state.flatten(), action, reward, done, log_prob, value)
-                    else:
-                        self.buffer.add(_state.reshape((self.N_ENVS,-1)), action.reshape(self.N_ENVS,-1), reward, done, log_prob.cpu(), value.reshape((self.N_ENVS,)))
-                if self.N_ENVS == 1 and done:
-                    next_state = env.reset()
-                    episodes_passed += 1
-                    episodic_returns.append(episodic_reward)
-                    log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
-                    episodic_reward = 0
-                    env.close()
-                    env = self.create_env()
-                    env.reset()
-                    running_ret = 0
-                elif self.N_ENVS > 1:
+                    # if self.N_ENVS == 1:
+                    #     self.buffer.add(_state.flatten(), action, reward, done, log_prob, value)
+                    # else:
+                    self.buffer.add(_state.reshape((self.N_ENVS,-1)), action.reshape(self.N_ENVS,-1), reward, done, log_prob.cpu(), value.reshape((self.N_ENVS,)))
+                # if self.N_ENVS == 1 and done:
+                #     next_state = env.reset()
+                #     episodes_passed += 1
+                #     episodic_returns.append(episodic_reward)
+                #     log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
+                #     episodic_reward = 0
+                #     env.close()
+                #     env = self.create_env()
+                #     env.reset()
+                #     running_ret = 0
+                # elif self.N_ENVS > 1:
+                if True:
                     for i, d in enumerate(done):
                         if d:
                             next_state[i] = envs[i].reset()
@@ -382,18 +374,18 @@ class PPO():
                 rollout_timesteps += 1 #self.N_ENVS
                 total_timesteps += self.N_ENVS
 
-            if self.N_ENVS == 1:
-                state = _state[None,:]
-            else:
-                state = _state
+            # if self.N_ENVS == 1:
+            #     state = _state[None,:]
+            # else:
+            state = _state
             with torch.no_grad():
                 state = self.normalize_obs(state)#.float()
                 state = torch.as_tensor(state).float().to(device)
                 _, last_value = actor_critic(state)
-                if self.N_ENVS == 1:
-                    last_value = last_value[0].cpu().numpy().item()
-                else:
-                    last_value = last_value.cpu().numpy()
+                # if self.N_ENVS == 1:
+                #     last_value = last_value[0].cpu().numpy().item()
+                # else:
+                last_value = last_value.cpu().numpy()
 
             self.buffer.compute_values(last_value, self.GAMMA, self.LDA)
 
@@ -455,7 +447,7 @@ class PPO():
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
-            # print(self.welford_mean)
+            print(self.welford_mean)
             # print(self.welford_ret_mean)
             # print(self.welford_ret_M2)
             # print(self.welford_count)
