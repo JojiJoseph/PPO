@@ -354,7 +354,7 @@ class PPO():
                     action_params, values_pred = actor_critic(states)
                     values_pred = values_pred.flatten()
 
-                    loss_critic = self.COEFF_V * F.mse_loss(values, values_pred)
+                    loss_critic = F.mse_loss(values, values_pred)
                     if self.ADV_NORMALIZATION:
                         advantages = (advantages - advantages.mean())/(advantages.std() + 1e-8)
                     advantages = advantages.flatten()
@@ -372,8 +372,8 @@ class PPO():
                     ratio = torch.exp(log_prob - old_log_prob).squeeze()
                     l1 = ratio*advantages
                     l2 = torch.clip(ratio, 1 - self.CLIP_RANGE, 1 + self.CLIP_RANGE)*advantages
-                    loss_actor = -torch.min(l1,l2)
-                    loss = loss_actor.mean() + loss_critic + self.COEFF_ENTROPY*entropy_loss
+                    loss_actor = -torch.min(l1,l2).mean()
+                    loss = loss_actor + self.COEFF_V * loss_critic + self.COEFF_ENTROPY*entropy_loss
                     loss.backward()
                     if self.MAX_GRAD_NORM is not None:
                         torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
@@ -387,7 +387,6 @@ class PPO():
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
-            print(self.welford_mean)
             print("Total timesteps = ", total_timesteps)
 
             if iteration % 10 == 0:
@@ -450,7 +449,7 @@ class PPO():
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
                 action = action.detach().cpu().numpy()
-                np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
+                action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward
