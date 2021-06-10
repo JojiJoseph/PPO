@@ -132,13 +132,6 @@ class PPO():
         return actor_critic
 
     def welford_update(self, observation):
-        # if self.N_ENVS == 1:
-        #     self.welford_count += 1
-        #     delta = observation - self.welford_mean
-        #     self.welford_mean += delta/self.welford_count
-        #     delta2 = observation - self.welford_mean
-        #     self.welford_M2 += delta * delta2
-        # else:
         b_mean = np.mean(observation, axis=0)
         b_M2 = np.var(observation, axis=0)*self.N_ENVS
         self.welford_count += self.N_ENVS
@@ -246,7 +239,6 @@ class PPO():
         
         _state = env.reset() # Unconverted state
         
-        # if self.N_ENVS > 1:
         _state = np.array([env.reset() for env in envs])
         
         episodic_reward = 0
@@ -268,23 +260,16 @@ class PPO():
 
                     _state = self.normalize_obs(_state) 
 
-                    # if self.N_ENVS == 1:
-                    #     state = _state[None,:]
-                    # else:
+
                     state = _state
                     state = torch.as_tensor(state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
                         prob_params, value = actor_critic(state)
-                        # if self.N_ENVS == 1:
-                        #     distrib = torch.distributions.Categorical(logits=prob_params[0])
-                        # else:
+
                         distrib = torch.distributions.Categorical(logits=prob_params)
                         action = distrib.sample((1,)).flatten()
-                        # if self.N_ENVS == 1:
-                        #     log_prob = distrib.log_prob(action).item()
-                        #     action = action[0].cpu().numpy()
-                        # else:
+
                         log_prob = distrib.log_prob(action)
                         action = action.cpu().numpy()
 
@@ -292,41 +277,26 @@ class PPO():
                         # print("s",state.shape)
                         prob_params, value = actor_critic(state)
                         mu, log_sigma = prob_params
-                        # if self.N_ENVS == 1:
-                        #     distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
-                        #     action = distrib.sample((1,))
-                        # else:
+
                         distrib = torch.distributions.Normal(mu, log_sigma.exp())
                         action = distrib.sample((1,))[0]
-                        # print(action.shape)
-                        # if self.N_ENVS == 1:
-                        #     log_prob = distrib.log_prob(action).sum(dim=1).item()
-                        #     action = action[0].cpu().numpy()
-                        #     action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
-                        #     # print(action)
-                        # else:
+
                         log_prob = distrib.log_prob(action).sum(dim=1)
                         action = action.cpu().numpy()
                         action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
-                        # print(action.shape)
-                        # action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
 
-                    # if self.N_ENVS == 1:
-                    #     next_state, reward, done, info = env.step(action)
-                    # else:
-                    # print(action.shape)
                     batch_result = [env.step(a) for env, a in zip(envs,action)]
-                    # print(batch_result)
+
                     next_state, reward, done, info = [], [], [], []
                     for n, r, d, i in batch_result:
                         next_state.append(n)
                         reward.append(r)
                         done.append(d)
                         info.append(i)
-                        # print(i)
+
                     reward = np.array(reward)
                     next_state = np.array(next_state)
-                    # print(next_state.shape)
+
                     done = np.array(done)
                     info = np.array(info)
                     episodic_reward += reward
@@ -334,39 +304,22 @@ class PPO():
                     if self.REW_NORMALIZATION == "welford":
                         self.welford_rew_update(running_ret)
                     reward = self.normalize_rew(reward)
-                    # print((reward*reward).shape)
+
                     value = value.cpu().detach().numpy()
                     if self.THRESH_MIN_RETURN and episodic_reward < self.THRESH_MIN_RETURN:
                         done = True
-                    # print(type(self.buffer))
-                    # if self.N_ENVS == 1:
-                    #     self.buffer.add(_state.flatten(), action, reward, done, log_prob, value)
-                    # else:
+
                     self.buffer.add(_state.reshape((self.N_ENVS,-1)), action.reshape(self.N_ENVS,-1), reward, done, log_prob.cpu(), value.reshape((self.N_ENVS,)))
-                # if self.N_ENVS == 1 and done:
-                #     next_state = env.reset()
-                #     episodes_passed += 1
-                #     episodic_returns.append(episodic_reward)
-                #     log_data.append([episodes_passed, total_timesteps+1, episodic_reward])
-                #     episodic_reward = 0
-                #     env.close()
-                #     env = self.create_env()
-                #     env.reset()
-                #     running_ret = 0
-                # elif self.N_ENVS > 1:
-                if True:
-                    for i, d in enumerate(done):
-                        if d:
-                            next_state[i] = envs[i].reset()
-                            episodes_passed += 1
-                            # print(episodic_reward)
-                            episodic_returns.append(episodic_reward[i])
-                            log_data.append([episodes_passed, total_timesteps+1, episodic_reward[i]])
-                            episodic_reward[i] = 0
-                            # envs[i].close()
-                            # envs[i] = self.create_env()
-                            # envs[i].reset()
-                            running_ret[i] = 0
+
+
+                for i, d in enumerate(done):
+                    if d:
+                        next_state[i] = envs[i].reset()
+                        episodes_passed += 1
+                        episodic_returns.append(episodic_reward[i])
+                        log_data.append([episodes_passed, total_timesteps+1+i, episodic_reward[i]])
+                        episodic_reward[i] = 0
+                        running_ret[i] = 0
 
 
                 _state = next_state
@@ -374,25 +327,21 @@ class PPO():
                 rollout_timesteps += 1 #self.N_ENVS
                 total_timesteps += self.N_ENVS
 
-            # if self.N_ENVS == 1:
-            #     state = _state[None,:]
-            # else:
+
             state = _state
             with torch.no_grad():
                 state = self.normalize_obs(state)#.float()
                 state = torch.as_tensor(state).float().to(device)
                 _, last_value = actor_critic(state)
-                # if self.N_ENVS == 1:
-                #     last_value = last_value[0].cpu().numpy().item()
-                # else:
+
                 last_value = last_value.cpu().numpy()
 
             self.buffer.compute_values(last_value, self.GAMMA, self.LDA)
 
             for epoch in range(self.N_EPOCHS):
-                # print(epoch)
+
                 for id, (states, actions, advantages, values, old_log_prob) in enumerate(self.buffer):
-                    # print(epoch,id, actions.shape, advantages.shape, values.shape, old_log_prob.shape)
+
                     if type(env.action_space) == gym.spaces.Discrete:
                         actions = torch.as_tensor(actions).long().flatten().to(device)
                     else:
@@ -434,11 +383,7 @@ class PPO():
                     if self.MAX_GRAD_NORM is not None:
                         torch.nn.utils.clip_grad_norm_(actor_critic.parameters(), self.MAX_GRAD_NORM)
                     opt.step()
-                    # del states
-                    # del loss
-                    # del l1
-                    # del l2
-                    # del advantages
+
             self.buffer.clear()
 
             iteration += 1
@@ -448,13 +393,8 @@ class PPO():
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
             print(self.welford_mean)
-            # print(self.welford_ret_mean)
-            # print(self.welford_ret_M2)
-            # print(self.welford_count)
-            # print("#", self.welford_count)
-            # print("##", self.welford_ret_count)
             print("Total timesteps = ", total_timesteps)
-            # print(type(self.welford_mean[0]))
+
             if iteration % 10 == 0:
                 t_evaluation_start = time.time()
                 evaluation_score = self.evaluate()
@@ -493,17 +433,15 @@ class PPO():
     def evaluate(self):
         device = self.DEVICE
         total_reward = 0
-        # env = self.envs[0]
         actor_critic = self.actor_critc
-        # print(actor_critic)
+
         env = self.create_env()
-        # env = self.eval_env
+
         for episode in range(self.N_EVAL_EPISODES):
             _state = env.reset()
             done = False
             while not done:
-                # _state = self.normalize_obs(_state)
-                # print(env)
+
                 state = _state[None,:]
                 state = self.normalize_obs(state)
                 with torch.no_grad():
@@ -521,5 +459,5 @@ class PPO():
                 next_state, reward, done, info = env.step(action)
                 _state = next_state
                 total_reward += reward
-        # env.close()
+        env.close()
         return total_reward / self.N_EVAL_EPISODES
