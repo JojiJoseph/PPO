@@ -15,7 +15,7 @@ import os
 import yaml
 
 from rollout_buffer import RolloutBuffer, RolloutBufferMultiEnv
-from net import ActorCritic, ActorCriticContinuous, CnnActorCriticContinuos, CnnAtari
+from net import *
 
 DEBUG = False
 
@@ -27,6 +27,7 @@ class PPO():
         action_scale=1, net_size=64, namespace=None, gamma=0.99, lda=0.99, wrapper=None, policy=None,
         thresh_min_return=None, wrappers=[], adv_normalization=True, resume=False, n_envs=1):
 
+        # Hyperparameters
         self.LEARNING_RATE = learning_rate
         self.ENV_NAME = env_name
         self.N_TIMESTEPS = n_timesteps
@@ -38,8 +39,6 @@ class PPO():
         self.N_EVAL_EPISODES = n_eval_episodes
         self.MAX_GRAD_NORM = max_grad_norm
         self.COEFF_ENTROPY = coeff_entropy
-        if device is None:
-            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.DEVICE = device
         self.OBS_NORMALIZATION = obs_normalization
         self.OBS_SHIFT = obs_shift
@@ -61,6 +60,8 @@ class PPO():
         if namespace:
             os.makedirs("./results/" + namespace, exist_ok=True)
             self.save_dir = "./results/" + namespace
+        if device is None:
+            device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     def normalize_obs(self, observation):
         if self.OBS_NORMALIZATION == "simple":
@@ -69,17 +70,11 @@ class PPO():
             if self.OBS_SCALE is not None:
                 observation /= self.OBS_SCALE
         elif self.OBS_NORMALIZATION == "welford":
-            # print("observation", observation[0])
-            # print("welford mean", self.welford_mean)
-            # print(observation[0][0])
-            # print(int(self.welford_mean[0]))
-            # exit()
+            # Leave the following comment
             # std = np.sqrt(self.welford_M2 / self.welford_count + 1e-8)
             std = np.sqrt(self.welford_var)
             observation = (observation - self.welford_mean)/ std#, -10, 10)
             observation = np.clip(observation, -10, 10)
-            # observation = (observation - self.welford_mean)/self.OBS_SCALE
-            # print(observation)
         return observation
 
     def normalize_rew(self, reward):
@@ -89,9 +84,9 @@ class PPO():
             if self.REW_SCALE is not None:
                 reward /= self.REW_SCALE
         elif self.REW_NORMALIZATION == "welford":
-            # std = np.sqrt(self.welford_ret_M2 / self.welford_count + 1e-8)
+            # std = np.sqrt(self.welford_ret_M2 / self.welford_count + 1e-8) # Leave this comment as it is
             std = np.sqrt(self.welford_ret_var + 1e-8)
-            reward = reward/ std#, -10, 10)
+            reward = reward/ std
             reward = np.clip(reward, -10, 10)
         return reward
 
@@ -119,6 +114,9 @@ class PPO():
                 if self.POLICY == "cnn_atari":
                     actor_critic = CnnAtari(n_actions).to(device)
                     self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, 84*84*4)
+                if self.POLICY == "mlp2":
+                    actor_critic = ActorCritic2(state_dim, n_actions, self.NET_SIZE).to(device)
+                    self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, 1, state_dim)
         elif type(env.action_space) == gym.spaces.Box:
             action_dim = env.action_space.shape[0]
             actor_critic = ActorCriticContinuous(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
@@ -126,6 +124,9 @@ class PPO():
             if self.POLICY == "cnn_car_racing":
                 actor_critic = CnnActorCriticContinuos(4, action_dim).to(device)
                 self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, 96*96*4)
+            if self.POLICY == "mlp2":
+                actor_critic = ActorCriticContinuous2(state_dim, action_dim, self.ACTION_SCALE, size=self.NET_SIZE).to(device)
+                self.buffer = RolloutBuffer(self.N_ROLLOUT_TIMESTEPS, self.BATCH_SIZE, action_dim, state_dim)
         else:
             raise NotImplementedError
         return actor_critic
@@ -133,15 +134,11 @@ class PPO():
     def welford_update(self, observation):
         if self.N_ENVS == 1:
             self.welford_count += 1
-            # print(observation.shape, self.welford_mean.shape, self.welford_M2.shape)
             delta = observation - self.welford_mean
             self.welford_mean += delta/self.welford_count
             delta2 = observation - self.welford_mean
             self.welford_M2 += delta * delta2
-        # self.welford_M2 += delta*delta
         else:
-            # print("Before update", self.welford_mean)
-            # print("Update - obs", observation)
             b_mean = np.mean(observation, axis=0)
             b_M2 = np.var(observation, axis=0)*self.N_ENVS
             self.welford_count += self.N_ENVS
@@ -155,25 +152,24 @@ class PPO():
             # print("After updatae", self.welford_mean)
             
     def welford_rew_update(self, ret):
-        if self.OBS_NORMALIZATION != "welford":
-            self.welford_count += N_ENVS
+        # if self.OBS_NORMALIZATION != "welford":
+        self.welford_ret_count += self.N_ENVS
         # print(observation.shape, self.welford_mean.shape, self.welford_M2.shape)
         if self.N_ENVS == 1:
             delta = ret - self.welford_ret_mean
-            self.welford_ret_mean += delta/self.welford_count
+            self.welford_ret_mean += delta/self.welford_ret_count
             delta2 = ret - self.welford_ret_mean
             self.welford_ret_M2 += delta * delta2
         else:
             b_mean = np.mean(ret)
             b_M2 = np.var(ret)*self.N_ENVS
-            # self.welford_count += self.N_ENVS
             delta = b_mean - self.welford_ret_mean
-            self.welford_ret_mean += delta*self.N_ENVS/self.welford_count
-            self.welford_ret_M2 += b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
+            self.welford_ret_mean += delta*self.N_ENVS/self.welford_ret_count
+            self.welford_ret_M2 += b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
 
             # Test lines
-            M2 = self.welford_ret_var * (self.welford_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_count-self.N_ENVS) * self.N_ENVS/ self.welford_count
-            self.welford_ret_var = M2 / self.welford_count
+            M2 = self.welford_ret_var * (self.welford_ret_count-self.N_ENVS) + b_M2 + np.square(delta) * (self.welford_ret_count-self.N_ENVS) * self.N_ENVS/ self.welford_ret_count
+            self.welford_ret_var = M2 / self.welford_ret_count
 
 
     
@@ -201,14 +197,18 @@ class PPO():
 
         self.env = env
 
+        # Statistics of observations and returns
         self.welford_mean = np.zeros((env.observation_space.shape[0],), np.float64)
         self.welford_M2 = np.ones((env.observation_space.shape[0],), np.float64)
         self.welford_var = np.ones((env.observation_space.shape[0],), np.float64)
         self.welford_count = np.array(1e-4, dtype=np.float64)
+        self.welford_ret_count = np.array(1e-4, dtype=np.float64)
         self.welford_ret_mean = np.array(0, np.float64)
         self.welford_ret_M2 = np.array(1, np.float64)
         self.welford_ret_var = np.array(1, np.float64)
 
+        # The queue that stores last 100 episodes.
+        # Used to caculate mean score for the last 100 episodes
         episodic_returns = Deque(maxlen=100)
 
         state_dim = env.observation_space.shape[0]
@@ -216,17 +216,21 @@ class PPO():
         actor_critic = self.create_network()
 
         if self.N_ENVS > 1:
+            # Create a vector of environments
             envs = [self.create_env() for i in range(self.N_ENVS)]
             if type(env.action_space) == gym.spaces.Discrete:
                 self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, 1, env.observation_space.shape[0])
             elif type(env.action_space) == gym.spaces.Box:
                 self.buffer = RolloutBufferMultiEnv(self.N_ROLLOUT_TIMESTEPS, self.N_ENVS, self.BATCH_SIZE, env.action_space.shape[0], env.observation_space.shape[0])
 
+        # The object that helps to load checkpoints
         training_info = {}
         training_info["episodes"] = 0
         training_info["timesteps"] = 0
         training_info["iteration"] = 0
         training_info["high_score"] = -np.inf
+        training_info["statistics"] = {} # TODO
+
         if self.RESUME:
             actor_critic.load_state_dict(torch.load(self.save_dir + "/checkpoint.pt"))
             with open(self.save_dir + "/progress.yaml","r") as f:
@@ -241,50 +245,42 @@ class PPO():
                 self.welford_M2 = actor_critic.welford_M2.data.detach().numpy()
                 self.welford_count = actor_critic.welford_count.data.detach().numpy()
 
-        
-
+        # Optimizer. TODO: Implement learning schedule
         opt = torch.optim.Adam(actor_critic.parameters(), lr=self.LEARNING_RATE)
-
-        print(opt)
 
         episodes_passed = training_info["episodes"]
         iteration = training_info["iteration"]
         total_timesteps = training_info["timesteps"]
         high_score = training_info["high_score"]
         
-
         _state = env.reset() # Unconverted state
+        
         if self.N_ENVS > 1:
             _state = np.array([env.reset() for env in envs])
-        # print("State",_state.shape)
+        
         episodic_reward = 0
-        if DEBUG: # For debugging purpose
-            min_state = [np.inf]*env.observation_space.shape[0]
-            max_state = [-np.inf]*env.observation_space.shape[0]
-            shift = 0
+                
         running_ret = np.zeros(self.N_ENVS)
+        
+        # Training loop
         while total_timesteps < self.N_TIMESTEPS:
             rollout_timesteps = 0
             self.buffer.clear()
             t_train_start = time.time()
+
+            # Collecting data
             while rollout_timesteps < self.N_ROLLOUT_TIMESTEPS:
                 with torch.no_grad():
-                    if DEBUG:
-                        min_state = np.minimum(min_state, _state)
-                        max_state = np.maximum(max_state,_state)
+
                     if (self.OBS_NORMALIZATION == "welford"):
-                        # print("welford update")
                         self.welford_update(_state)
-                        # print(self.welford_mean, self.welford_M2, self.welford_count)
-                    # print("\n",_state)
-                    # print(self.welford_mean)
+
                     _state = self.normalize_obs(_state) 
-                    # print(_state)
+
                     if self.N_ENVS == 1:
                         state = _state[None,:]
                     else:
                         state = _state
-                    # print("H", state)
                     state = torch.as_tensor(state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
@@ -383,16 +379,9 @@ class PPO():
 
                 _state = next_state
 
-                # print("_", next_state.shape)
-
                 rollout_timesteps += 1 #self.N_ENVS
                 total_timesteps += self.N_ENVS
-            if DEBUG:
-                print(min_state)
-                print(max_state)
-                shift=- (max_state + min_state)/2
-                print("shift", shift)
-                print("scale", abs(max_state + shift))
+
             if self.N_ENVS == 1:
                 state = _state[None,:]
             else:
@@ -466,10 +455,12 @@ class PPO():
             self.actor_critc = actor_critic
             print("\nIteration = ", iteration)
             print("Avg. Return = ", np.mean(episodic_returns))
-            print(self.welford_mean)
-            print(self.welford_ret_mean)
-            print(self.welford_ret_M2)
-            print(self.welford_count)
+            # print(self.welford_mean)
+            # print(self.welford_ret_mean)
+            # print(self.welford_ret_M2)
+            # print(self.welford_count)
+            # print("#", self.welford_count)
+            # print("##", self.welford_ret_count)
             print("Total timesteps = ", total_timesteps)
             # print(type(self.welford_mean[0]))
             if iteration % 10 == 0:

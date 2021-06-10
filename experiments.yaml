@@ -702,6 +702,7 @@ card_multi:
   env_name: "MountainCar-v0"
   obs_normalization: "welford"
   rew_normalization: "welford"
+  policy: "mlp2"
   # device: "cpu"
   n_envs: 16
   n_timesteps: !!float 1e6
@@ -761,5 +762,21 @@ ant_multi:
   device: "cpu"
   learning_rate: !!float 3e-5
   net_size: 256
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+ch_multi:
+  env_name: "HalfCheetahBulletEnv-v0"
+  learning_rate: !!float 3e-5
+  n_timesteps: !!float 2e6
+  n_epochs: 10
+  batch_size: 64
+  n_envs: 8
+  n_rollout_timesteps: 256
+  device: "cpu"
+  clip_range: 0.2
+  max_grad_norm: 0.5
+  net_size: 256
+  # coeff_entropy: 0.01
+  policy: "mlp2"
   obs_normalization: "welford"
   rew_normalization: "welford"

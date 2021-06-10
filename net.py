@@ -4,46 +4,46 @@ import torch.nn as nn
 from torch.nn.modules.activation import ReLU
 from torch.nn.modules.conv import Conv2d
 
-# class Actor(nn.Module):
-#     def __init__(self, state_dim, n_actions, size=64) -> None:
-#         super().__init__()
-#         self.l1 = nn.Linear(state_dim, size)
-#         self.l2 = nn.Linear(size,size)
-#         self.l3 = nn.Linear(size,n_actions)
-#     def forward(self, x):
-#         y = torch.relu(self.l1(x))
-#         y = torch.relu(self.l2(y))
-#         y = self.l3(y)
-#         return y
-
-# class Critic(nn.Module):
-#     def __init__(self, state_dim, size=64)  -> None:
-#         super().__init__()
-#         self.l1 = nn.Linear(state_dim, size)
-#         self.l2 = nn.Linear(size,size)
-#         self.l3 = nn.Linear(size,1)
-#     def forward(self, x):
-#         y = torch.relu(self.l1(x))
-#         y = torch.relu(self.l2(y))
-#         y = self.l3(y)
-#         return y
-
-# class ActorContinuous(nn.Module):
-#     def __init__(self, state_dim, action_dim, action_scale=1,size=64) -> None:
-#         super().__init__()
-#         self.l1 = nn.Linear(state_dim, size)
-#         self.l2 = nn.Linear(size,size)
-#         self.mu = nn.Linear(size,action_dim)
-#         self.log_std = nn.Parameter(torch.zeros(action_dim), requires_grad=True)
-#         self.action_scale = action_scale
-#     def forward(self, x):
-#         y = torch.relu(self.l1(x))
-#         y = torch.relu(self.l2(y))
-#         mu = torch.tanh(self.mu(y))
-#         # log_std = self.log_std(y)
-#         return self.action_scale * mu, self.log_std
-
 class Actor(nn.Module):
+    def __init__(self, state_dim, n_actions, size=64) -> None:
+        super().__init__()
+        self.l1 = nn.Linear(state_dim, size)
+        self.l2 = nn.Linear(size,size)
+        self.l3 = nn.Linear(size,n_actions)
+    def forward(self, x):
+        y = torch.relu(self.l1(x))
+        y = torch.relu(self.l2(y))
+        y = self.l3(y)
+        return y
+
+class Critic(nn.Module):
+    def __init__(self, state_dim, size=64)  -> None:
+        super().__init__()
+        self.l1 = nn.Linear(state_dim, size)
+        self.l2 = nn.Linear(size,size)
+        self.l3 = nn.Linear(size,1)
+    def forward(self, x):
+        y = torch.relu(self.l1(x))
+        y = torch.relu(self.l2(y))
+        y = self.l3(y)
+        return y
+
+class ActorContinuous(nn.Module):
+    def __init__(self, state_dim, action_dim, action_scale=1,size=64) -> None:
+        super().__init__()
+        self.l1 = nn.Linear(state_dim, size)
+        self.l2 = nn.Linear(size,size)
+        self.mu = nn.Linear(size,action_dim)
+        self.log_std = nn.Parameter(torch.zeros(action_dim), requires_grad=True)
+        self.action_scale = action_scale
+    def forward(self, x):
+        y = torch.relu(self.l1(x))
+        y = torch.relu(self.l2(y))
+        mu = torch.tanh(self.mu(y))
+        # log_std = self.log_std(y)
+        return self.action_scale * mu, self.log_std
+
+class Actor2(nn.Module):
     def __init__(self, state_dim, n_actions, size=64) -> None:
         super().__init__()
         self.l1 = nn.Linear(state_dim, size)
@@ -52,10 +52,10 @@ class Actor(nn.Module):
     def forward(self, x):
         y = torch.tanh(self.l1(x))
         y = torch.tanh(self.l2(y))
-        y = self.l3(y)
+        y = (self.l3(y))
         return y
 
-class Critic(nn.Module):
+class Critic2(nn.Module):
     def __init__(self, state_dim, size=64)  -> None:
         super().__init__()
         self.l1 = nn.Linear(state_dim, size)
@@ -67,7 +67,7 @@ class Critic(nn.Module):
         y = self.l3(y)
         return y
 
-class ActorContinuous(nn.Module):
+class ActorContinuous2(nn.Module):
     def __init__(self, state_dim, action_dim, action_scale=1,size=64) -> None:
         super().__init__()
         self.l1 = nn.Linear(state_dim, size)
@@ -98,6 +98,28 @@ class ActorCriticContinuous(nn.Module):
         super().__init__()
         self.actor = ActorContinuous(state_dim, action_dim, action_scale,size)
         self.critic = Critic(state_dim,size)
+        self.welford_mean = nn.Parameter(torch.zeros(state_dim))
+        self.welford_M2 = nn.Parameter(torch.ones(state_dim))
+        self.welford_count = nn.Parameter(torch.tensor(1.))
+    def forward(self, x):
+        return self.actor(x), self.critic(x)
+
+class ActorCritic2(nn.Module):
+    def __init__(self, state_dim, n_actions, size=64):
+        super().__init__()
+        self.actor = Actor2(state_dim, n_actions, size)
+        self.critic = Critic2(state_dim, size)
+        self.welford_mean = nn.Parameter(torch.zeros(state_dim))
+        self.welford_M2 = nn.Parameter(torch.ones(state_dim))
+        self.welford_count = nn.Parameter(torch.tensor(1.))
+    def forward(self, x):
+        return self.actor(x), self.critic(x)
+
+class ActorCriticContinuous2(nn.Module):
+    def __init__(self, state_dim, action_dim, action_scale=1, size=64):
+        super().__init__()
+        self.actor = ActorContinuous2(state_dim, action_dim, action_scale,size)
+        self.critic = Critic2(state_dim,size)
         self.welford_mean = nn.Parameter(torch.zeros(state_dim))
         self.welford_M2 = nn.Parameter(torch.ones(state_dim))
         self.welford_count = nn.Parameter(torch.tensor(1.))
