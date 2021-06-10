@@ -258,9 +258,7 @@ class PPO():
 
                     _state = self.normalize_obs(_state) 
 
-
-                    state = _state
-                    state = torch.as_tensor(state).float().to(device)
+                    state = torch.as_tensor(_state).float().to(device)
 
                     if type(env.action_space) == gym.spaces.Discrete:
                         prob_params, value = actor_critic(state)
@@ -272,7 +270,6 @@ class PPO():
                         action = action.cpu().numpy()
 
                     else:
-                        # print("s",state.shape)
                         prob_params, value = actor_critic(state)
                         mu, log_sigma = prob_params
 
@@ -298,7 +295,7 @@ class PPO():
                     done = np.array(done)
                     info = np.array(info)
                     episodic_reward += reward
-                    running_ret = running_ret*self.GAMMA + reward 
+                    running_ret = running_ret*self.GAMMA + reward
                     if self.REW_NORMALIZATION == "welford"  and self.welford_ret_count < self.MAX_NORMALIZATION_STEPS:
                         self.welford_rew_update(running_ret)
                     reward = self.normalize_rew(reward)
@@ -319,16 +316,14 @@ class PPO():
                         episodic_reward[i] = 0
                         running_ret[i] = 0
 
-
                 _state = next_state
 
                 rollout_timesteps += 1 #self.N_ENVS
                 total_timesteps += self.N_ENVS
 
 
-            state = _state
             with torch.no_grad():
-                state = self.normalize_obs(state)#.float()
+                state = self.normalize_obs(_state)
                 state = torch.as_tensor(state).float().to(device)
                 _, last_value = actor_critic(state)
 

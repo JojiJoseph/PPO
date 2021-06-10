@@ -93,18 +93,15 @@ class RolloutBufferMultiEnv():
     def compute_values(self, last_value=0,gamma=0.99, lda=1.0):
         n = self.idx
         prev_adv = 0
-        self.dones = 1 - self.dones
         last_value = last_value.reshape((-1,))
         for i in range(n-1,-1,-1):
-            # if self.dones[i]:
-            #     delta = self.rewards[i] - self.values[i]
-            # else:
-            delta = self.rewards[i] + gamma*last_value*self.dones[i] - self.values[i]
-            adv = delta + lda*gamma*self.dones[i]*prev_adv
+            delta = self.rewards[i] + gamma*last_value*(1-self.dones[i]) - self.values[i]
+            adv = delta + lda*gamma*(1-self.dones[i])*prev_adv
             prev_adv = adv
             last_value = self.values[i]
             self.advantages[i] = adv
             self.returns[i] = adv + self.values[i]
+    
     def clear(self):
         self.idx = 0
 
@@ -122,6 +119,6 @@ class RolloutBufferMultiEnv():
             adv = adv.reshape((-1,))
             ret = adv.reshape((-1,))
             l = l.reshape((-1,))
-            return s,a,adv, ret,l
+            return s,a,adv,ret,l
         else:
             raise StopIteration
