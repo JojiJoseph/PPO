@@ -444,13 +444,14 @@ class PPO():
                     action_params, _ = actor_critic(state)
                     if type(env.action_space) == gym.spaces.Discrete:
                         action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))[0]
+                        action_clipped = action.detach().cpu().numpy()
                     else:
                         mu, log_sigma = action_params
                         distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
                         action = distrib.sample((1,))[0]
-                action = action.detach().cpu().numpy()
-                action = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
-                next_state, reward, done, info = env.step(action)
+                        action = action.detach().cpu().numpy()
+                        action_clipped = np.clip(action, -self.ACTION_SCALE, self.ACTION_SCALE)
+                next_state, reward, done, info = env.step(action_clipped)
                 _state = next_state
                 total_reward += reward
         env.close()

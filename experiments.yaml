@@ -799,8 +799,8 @@ ant8:
 
 chm:
   env_name: "HalfCheetahBulletEnv-v0"
-  # env_wrapper: sb3_contrib.common.wrappers.TimeFeatureWrapper
   obs_normalization: "welford"
+  rew_normalization: "welford"
   n_envs: 16
   n_timesteps: !!float 2e6
   policy: 'mlp2'
@@ -810,10 +810,36 @@ chm:
   lda: 0.9
   n_epochs: 20
   coeff_entropy: 0.0
-  # sde_sample_freq: 4
   max_grad_norm: 0.5
-  # vf_coef: 0.5
   learning_rate: !!float 3e-5
-  # use_sde: True
   clip_range: 0.2
   net_size: 256
+
+hmd:
+  env_name: "HumanoidBulletEnv-v0"
+  obs_normalization: "welford"
+  rew_normalization: "welford"
+  n_envs: 8
+  n_timesteps: !!float 1e7
+  policy: 'mlp2'
+  net_size: 256
+  n_rollout_timesteps: 2048
+  batch_size: 64
+  lda: 0.95
+  gamma: 0.99
+  n_epochs: 10
+  coeff_entropy: 0.0
+  learning_rate: 2.5e-4
+  clip_range: 0.2
+
+ld:
+  env_name: "LunarLander-v2"
+  n_envs: 16
+  n_timesteps: !!float 2e6
+  policy: 'mlp2'
+  n_rollout_timesteps: 1024
+  batch_size: 64
+  lda: 0.98
+  gamma: 0.999
+  n_epochs: 8
+  coeff_entropy: 0.01

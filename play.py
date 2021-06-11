@@ -108,7 +108,7 @@ except:
 
 n_episodes = 1
 if eval:
-    n_episodes = 50
+    n_episodes = 100
 returns = []
 for episode in range(n_episodes):
     state = env.reset()
@@ -124,12 +124,13 @@ for episode in range(n_episodes):
         action_params, _ = actor_critic(state)
         if type(env.action_space) == gym.spaces.Discrete:
             action = torch.distributions.Categorical(logits=action_params[0]).sample((1,))
+            action = action[0].detach().cpu().numpy()
         else:
             mu, log_sigma = action_params
             distrib = torch.distributions.Normal(mu[0], log_sigma.exp())
             action = distrib.sample((1,))
-        action = action[0].detach().cpu().numpy()
-        action = np.clip(action, -action_scale, action_scale)
+            action = action[0].detach().cpu().numpy()
+            action = np.clip(action, -action_scale, action_scale)
         if not eval:
             env.render()
             time.sleep(1/fps)
