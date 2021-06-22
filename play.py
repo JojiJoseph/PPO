@@ -28,10 +28,10 @@ print(eval)
 hyperparams = experiments[experiment]
 fps = 60
 
-if not eval:
-    env = Monitor(gym.make(hyperparams['env_name']), './video/{}_{}'.format(experiment,time.time()), force=True)
-else:
-    env = gym.make(hyperparams['env_name'])
+# if not eval:
+env = Monitor(gym.make(hyperparams['env_name']), './video/{}_{}'.format(experiment,time.time()), force=True)
+# else:
+    # env = gym.make(hyperparams['env_name'])
 
 print(env.action_space)
 print(env.observation_space)

@@ -6,7 +6,7 @@ Utility script to train diff gym compatible libraries with ppo
 import argparse
 import yaml
 import pybullet_envs
-from ppo_wip import PPO
+from ppo import PPO
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp",type=str, required=True,help="The experiment name as defined in the yaml file")

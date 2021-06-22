@@ -8,7 +8,7 @@ cartpole_1:
 cartpole_1_e1:
   learning_rate: 0.001
   coeff_entropy: 0.01
-  n_timesteps: !!float 1e5
+  n_timesteps: !!float 5e5
   env_name: "CartPole-v1"
   device: "cpu"
 cartpole_1_e2:
@@ -164,13 +164,14 @@ car_continuous:
 
 lunar_d: # Lunar Lander Discrete
   env_name: "LunarLander-v2"
-  learning_rate: !!float 1e-3
-  n_timesteps: !!float 1e6
+  learning_rate: !!float 1e-4
+  n_timesteps: !!float 2e6
   n_epochs: 4
   batch_size: 256
   n_rollout_timesteps: 1024
   device: "cpu"
   coeff_entropy: 0.01
+  obs_normalization: "welford"
 
 lunar_c:
   env_name: "LunarLanderContinuous-v2"
